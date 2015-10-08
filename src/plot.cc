@@ -8,19 +8,19 @@
 #include <stdlib.h>
 #include <math.h>
 
-const float Plot::kAxisesColor[] = {0.0f, 1.0f, 0.0f};
+const float Plot::kAxisesColor[] = {0.0f, 0.0f, 0.0f};
 
 Plot::Plot()
-  : min_x_(FLT_MAX),
-    max_x_(FLT_MIN),
-    min_y_(FLT_MAX),
-    max_y_(FLT_MIN),
+  : min_x_(DBL_MAX),
+    max_x_(DBL_MIN),
+    min_y_(DBL_MAX),
+    max_y_(DBL_MIN),
     view_width_(500),
     view_height_(500) {
 }
 
-void Plot::Add(const std::vector<float>& x,
-               const std::vector<float>& y,
+void Plot::Add(const std::vector<double>& x,
+               const std::vector<double>& y,
                int points_size,
                float color_red,
                float color_green,
@@ -58,7 +58,7 @@ void Plot::Show() {
   glutReshapeFunc(Reshape);
 
   // Init GL.
-  glClearColor(0.0, 0.0, 0.0, 1.0);
+  glClearColor(1.0, 1.0, 1.0, 1.0);
 
   current_plot = this;
 
@@ -125,7 +125,7 @@ void Plot::DrawMarkers() {
   // Markers of vertical axis
   int markers_step = (view_height_ - 1 - kTopIndent - kArrowsHeight -
                       kBottomIndent) / kVerticalAxisMarkers;
-  float values_step = (max_y_ - min_y_) / (kVerticalAxisMarkers - 1);
+  double values_step = (max_y_ - min_y_) / (kVerticalAxisMarkers - 1);
   y_ratio_ = values_step / markers_step;
   first_marker_y_ = kBottomIndent + markers_step / 2;
   for (int i = 0; i < kVerticalAxisMarkers; ++i) {
@@ -195,7 +195,7 @@ void Plot::DrawPoints() {
 }
 
 void Plot::DrawString(std::string str, int x, int y) {
-  const float kFontScaling = 0.1;
+  const double kFontScaling = 0.1;
 
   glPushMatrix();
   for (int i = 0; i < str.length(); ++i) {

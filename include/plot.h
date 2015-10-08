@@ -9,8 +9,8 @@ class Plot {
 public:
   Plot();
 
-  void Add(const std::vector<float>& x,
-           const std::vector<float>& y,
+  void Add(const std::vector<double>& x,
+           const std::vector<double>& y,
            int points_size,
            float color_red,
            float color_green,
@@ -32,8 +32,8 @@ private:
   static const float kAxisesColor[];
 
   struct Set {
-    std::vector<float> x;
-    std::vector<float> y;
+    std::vector<double> x;
+    std::vector<double> y;
     int points_size;
     float color[3];
   };
@@ -54,12 +54,12 @@ private:
 
   int view_width_;
   int view_height_;
-  float min_x_;
-  float max_x_;
-  float min_y_;
-  float max_y_;
-  float y_ratio_;
-  float x_ratio_;
+  double min_x_;
+  double max_x_;
+  double min_y_;
+  double max_y_;
+  double y_ratio_;
+  double x_ratio_;
   int first_marker_x_;
   int first_marker_y_;
   std::vector<Set> points_sets_;

@@ -1,11 +1,11 @@
 #include "include/system_solver.h"
 #include <stdlib.h>
 
-void SystemSolver::Solve(const std::vector<float>& upper_diag,
-                         const std::vector<float>& main_diag,
-                         const std::vector<float>& lower_diag,
-                         const std::vector<float>& right_part,
-                         std::vector<float>* y) {
+void SystemSolver::Solve(const std::vector<double>& upper_diag,
+                         const std::vector<double>& main_diag,
+                         const std::vector<double>& lower_diag,
+                         const std::vector<double>& right_part,
+                         std::vector<double>* y) {
   y->clear();
   if (main_diag.size() < 2 ||
       upper_diag.size() != main_diag.size()- 1 ||
@@ -59,13 +59,13 @@ void SystemSolver::ForwardMove() {
   alpha_[0] = kappa_1_;
   beta_[0] = mu_1_;
   for (int i = 1; i < n_; ++i) {
-    float denominator = C_[i - 1] - alpha_[i - 1] * A_[i - 1];
+    double denominator = C_[i - 1] - alpha_[i - 1] * A_[i - 1];
     alpha_[i] = B_[i - 1] / denominator;
     beta_[i] = (phi_[i - 1] + beta_[i - 1] * A_[i - 1]) / denominator;
   }
 }
 
-void SystemSolver::BackwardMove(std::vector<float>* y) {
+void SystemSolver::BackwardMove(std::vector<double>* y) {
   y->resize(n_ + 1);
   (*y)[n_] = (kappa_2_ * beta_[n_ - 1] + mu_2_) /
       (1 - kappa_2_ * alpha_[n_ - 1]);
