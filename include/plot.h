@@ -9,14 +9,17 @@ class Plot {
 public:
   Plot();
 
+  void Clear();
+
   void Add(const std::vector<double>& x,
            const std::vector<double>& y,
            int points_size,
            float color_red,
            float color_green,
-           float color_blue);
+           float color_blue,
+           bool uniform);
 
-  void Show();
+  void Show(const std::string& title);
 
   ~Plot();
 
@@ -36,6 +39,7 @@ private:
     std::vector<double> y;
     int points_size;
     float color[3];
+    bool uniform;
   };
 
   void DrawAxises();
@@ -63,4 +67,5 @@ private:
   int first_marker_x_;
   int first_marker_y_;
   std::vector<Set> points_sets_;
+  int window_handle_;
 };

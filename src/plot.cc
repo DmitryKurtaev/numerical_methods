@@ -1,7 +1,6 @@
 #include "include/plot.h"
 #include <float.h>
-#include <GL/gl.h>
-#include <GL/glut.h>
+#include <GL/freeglut.h>
 #include <string>
 #include <sstream>
 #include <iomanip>
@@ -24,7 +23,8 @@ void Plot::Add(const std::vector<double>& x,
                int points_size,
                float color_red,
                float color_green,
-               float color_blue) {
+               float color_blue,
+               bool uniform) {
   Set new_set;
   new_set.x = x;
   new_set.y = y;
@@ -32,6 +32,7 @@ void Plot::Add(const std::vector<double>& x,
   new_set.color[0] = color_red;
   new_set.color[1] = color_green;
   new_set.color[2] = color_blue;
+  new_set.uniform = uniform;
   for (int i = 0; i < x.size(); ++i) {
     if (x[i] < min_x_)
       min_x_ = x[i];
@@ -45,14 +46,15 @@ void Plot::Add(const std::vector<double>& x,
   points_sets_.push_back(new_set);
 }
 
-void Plot::Show() {
+void Plot::Show(const std::string& title) {
   // Init window.
   int argc = 0;
   glutInit(&argc, 0);
   glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
   glutInitWindowSize(view_width_, view_height_);
   glutInitWindowPosition(0, 0);
-  glutCreateWindow("Plot");
+  glutCreateWindow(title.c_str());
+  glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_CONTINUE_EXECUTION);
 
   glutDisplayFunc(Display);
   glutReshapeFunc(Reshape);
@@ -115,6 +117,7 @@ void Plot::DrawAxises() {
 }
 
 void Plot::DrawMarkers() {
+  glutDestroyWindow(window_handle_);
   const int kMarkersSize = 5;
   const int kVerticalAxisMarkers = 5;
   const int kHorizontalAxisMarkers = 5;
@@ -185,11 +188,24 @@ void Plot::DrawMarkers() {
 
 void Plot::DrawPoints() {
   for (int i = 0; i < points_sets_.size(); ++i) {
+    glColor3fv(points_sets_[i].color);
+    int prev_x;
+    int prev_y;
     for (int j = 0; j < points_sets_[i].x.size(); ++j) {
-      glColor3fv(points_sets_[i].color);
       int x = first_marker_x_ + (points_sets_[i].x[j] - min_x_) / x_ratio_;
       int y = first_marker_y_ + (points_sets_[i].y[j] - min_y_) / y_ratio_;
-      DrawCircle(x, y, points_sets_[i].points_size);
+      if (points_sets_[i].uniform) {
+        if (j != 0) {
+          glBegin(GL_LINES);
+          glVertex2i(prev_x, prev_y);
+          glVertex2i(x, y);
+          glEnd();
+        }
+      } else {
+        DrawCircle(x, y, points_sets_[i].points_size);
+      }
+      prev_x = x;
+      prev_y = y;
     }
   }
 }
@@ -209,6 +225,10 @@ void Plot::DrawString(std::string str, int x, int y) {
 }
 
 Plot::~Plot() {
+  Clear();
+}
+
+void Plot::Clear() {
   for (int i = 0; i < points_sets_.size(); ++i) {
     points_sets_[i].x.clear();
     points_sets_[i].y.clear();

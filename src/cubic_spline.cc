@@ -62,24 +62,24 @@ void CubicSpline::ComputeCoefficients(const std::vector<double>& y,
 }
 
 void CubicSpline::Show() {
-  const double spline_step = 0.001f;
+  const double kSplineDrawStep = 0.001f;
 
   Plot plot;
   std::vector<double> spline_x;
   std::vector<double> spline_y;
   for (int i = 0; i < x_.size() - 1; ++i) {
-    for (double x = x_[i]; x < x_[i + 1]; x += spline_step) {
+    for (double x = x_[i]; x < x_[i + 1]; x += kSplineDrawStep) {
       double y  = a_[i] +
-                 b_[i] * (x - x_[i + 1]) +
-                 0.5 * c_[i] * pow(x - x_[i + 1], 2) +
-                 1.0 / 6 * d_[i] * pow(x - x_[i + 1], 3);
+                  b_[i] * (x - x_[i + 1]) +
+                  0.5 * c_[i] * pow(x - x_[i + 1], 2) +
+                  1.0 / 6 * d_[i] * pow(x - x_[i + 1], 3);
       spline_x.push_back(x);
       spline_y.push_back(y);
     }
   }
-  plot.Add(spline_x, spline_y, 0, 0.0, 0.0, 0.0);
-  plot.Add(x_, y_, 3, 0.0, 0.0, 0.5);
-  plot.Show();
+  plot.Add(spline_x, spline_y, 0, 0.0, 0.0, 0.0, true);
+  plot.Add(x_, y_, 3, 0.0, 0.0, 0.5, false);
+  plot.Show("cubic spline");
 }
 
 void CubicSpline::PrintCoeffs(std::ostream* s) {
@@ -88,3 +88,37 @@ void CubicSpline::PrintCoeffs(std::ostream* s) {
     *s << i + 1;
   }
 }
+
+double CubicSpline::GetValue(double x) {
+  for (int i = 0; i < x_.size() - 1; ++i) {
+    if (x_[i] <= x && x < x_[i + 1]) {
+      return a_[i] +
+             b_[i] * (x - x_[i + 1]) +
+             0.5 * c_[i] * pow(x - x_[i + 1], 2) +
+             1.0 / 6 * d_[i] * pow(x - x_[i + 1], 3);
+    }
+  }
+  return 0;
+}
+
+double CubicSpline::GetDerivate(double x) {
+  for (int i = 0; i < x_.size() - 1; ++i) {
+    if (x_[i] <= x && x < x_[i + 1]) {
+      return b_[i] +
+             c_[i] *(x - x_[i + 1]) +
+             0.5 * d_[i] * pow(x - x_[i + 1], 2);
+    }
+  }
+  return 0;
+}
+
+double CubicSpline::GetSecondDerivate(double x) {
+  for (int i = 0; i < x_.size() - 1; ++i) {
+    if (x_[i] <= x && x < x_[i + 1]) {
+      return c_[i] +
+             d_[i] * (x - x_[i + 1]);
+    }
+  }
+  return 0;
+}
+

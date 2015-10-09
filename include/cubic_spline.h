@@ -5,7 +5,7 @@
 static const double kZeroLimit = 1e-10;
 
 class CubicSpline {
-public:
+ public:
   void Build(const std::vector<double>& x,
              const std::vector<double>& y,
              double lbound_xx,
@@ -15,7 +15,13 @@ public:
 
   void PrintCoeffs(std::ostream* s);
 
-private:
+  double GetValue(double x);
+
+  double GetDerivate(double x);
+
+  double GetSecondDerivate(double x);
+
+ private:
   void SolveSystem(const std::vector<double>& x,
                    const std::vector<double>& y,
                    double lbound_xx,
