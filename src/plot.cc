@@ -1,11 +1,13 @@
+// Copyright 2015 Dmitry Kurtaev
+
 #include "include/plot.h"
 #include <float.h>
 #include <GL/freeglut.h>
+#include <math.h>
+#include <stdlib.h>
 #include <string>
 #include <sstream>
 #include <iomanip>
-#include <stdlib.h>
-#include <math.h>
 
 const float Plot::kAxisesColor[] = {0.0f, 0.0f, 0.0f};
 

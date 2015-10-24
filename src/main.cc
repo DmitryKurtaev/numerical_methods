@@ -1,27 +1,15 @@
-#include "include/plot.h"
-#include "include/cubic_spline.h"
-#include <cmath>
+// Copyright 2015 Dmitry Kurtaev
+
 #include <stdio.h>
 #include <stdlib.h>
+#include <cmath>
+#include "include/plot.h"
+#include "include/cubic_spline.h"
+#include "include/command_line_parser.h"
 
 Plot plot;
 
 enum Border { LEFT, RIGHT };
-
-// Functions:
-// 0. f(x) = x^3 + 3x^2, if x in [-1, 0]
-//           -x^3 + 3x^2, if x in [0, 1];
-// 1. f(x) = sqrt(exp(x) - 1)
-// 2. f(x) = sqrt(exp(x) - 1) + cos10x
-// 3. f(x) = sqrt(exp(x) - 1) + cos100x
-//
-// Borders:
-// 0. [-1, 1]
-// 1. [1, 3]
-//
-// Borders conditions:
-// 0. [0, 0] identity
-// 1. [f''(lbound), f''(rbound)] robust
 
 double Function(int func_id, double x);
 
@@ -35,48 +23,95 @@ double GetBorderCondition(int condition_id,
 
 double GetBorder(int borders_id, Border border);
 
-void GenNodes(int number,
+void GenNodes(int number_intervals,
               double lbound,
               double rbound,
               int func_id,
               std::vector<double>* x,
               std::vector<double>* y);
 
-void CheckAccuracy(CubicSpline& spline,
+void CheckAccuracy(const CubicSpline& spline,
                    int func_id,
-                   int borders_id);
+                   int borders_id,
+                   double* max_diff_original,
+                   double* max_diff_derivate);
 
 void BuildSpline(int func_id,
                  int borders_id,
                  int borders_condition_id,
-                 int number_nodes,
+                 int number_intervals,
                  CubicSpline* spline);
 
-void Visualize(CubicSpline& spline,
-               int number_nodes,
+void Visualize(const CubicSpline& spline,
+               int number_intervals,
                int func_id,
                int borders_id);
 
 int main(int argc, char** argv) {
-  double tmp = 4.942921e+01 / 9.854518e+00;
-  tmp = 9.854518e+00 / 2.432854e+00;
-  tmp = 2.432854e+00 / 6.077543e-01;
-  const int func_id = atoi(argv[1]);
-  const int borders_id = atoi(argv[2]);
-  const int borders_condition_id = atoi(argv[3]);
-  const int number_nodes = atoi(argv[4]);
+  CommandLineParser parser(argc, argv);
+  if (parser.Exists("h")) {
+    std::cout << "Functions [-f]:\n"
+                 "0. f(x) = x^3 + 3x^2, if x in [-1, 0]\n"
+                 "          -x^3 + 3x^2, if x in [0, 1];\n"
+                 "1. f(x) = sqrt(exp(x) - 1)\n"
+                 "2. f(x) = sqrt(exp(x) - 1) + cos10x\n"
+                 "3. f(x) = sqrt(exp(x) - 1) + cos100x\n"
+                 "\n"
+                 "Borders [-b]:\n"
+                 "0. [-1, 1]\n"
+                 "1. [1, 3]\n"
+                 "\n"
+                 "Borders conditions [-bc]:\n"
+                 "0. [0, 0] identity\n"
+                 "1. [f''(lbound), f''(rbound)] robust\n" << std::endl;
+  }
+  if (!parser.Exists("f")) {
+    std::cout << "Set function [-f]" << std::endl;
+    return 0;
+  }
+  if (!parser.Exists("b")) {
+    std::cout << "Set borders [-b]" << std::endl;
+    return 0;
+  }
+  if (!parser.Exists("bc")) {
+    std::cout << "Set borders condition [-bc]" << std::endl;
+    return 0;
+  }
+  if (!parser.Exists("n")) {
+    std::cout << "Set number of intervals [-n]" << std::endl;
+    return 0;
+  }
+  const int func_id = parser.Get<int>("f");
+  const int borders_id = parser.Get<int>("b");
+  const int borders_condition_id = parser.Get<int>("bc");
+ // const int number_intervals = parser.Get<int>("n");
 
   CubicSpline spline;
-  BuildSpline(func_id,
-              borders_id,
-              borders_condition_id,
-              number_nodes,
-              &spline);
-  CheckAccuracy(spline,
-                func_id,
-                borders_id);
+  double max_diff_original = 0;
+  double max_diff_derivate = 0;
+  double number_intervals = 2;
+  for (number_intervals; true; number_intervals *= 1.1) {
+    BuildSpline(func_id,
+                borders_id,
+                borders_condition_id,
+                number_intervals,
+                &spline);
+    double next_max_diff_original;
+    double next_max_diff_derivate;
+    CheckAccuracy(spline,
+                  func_id,
+                  borders_id,
+                  &next_max_diff_original,
+                  &next_max_diff_derivate);
+    printf("%lf %lf\n\n",
+           max_diff_original / next_max_diff_original,
+           max_diff_derivate / next_max_diff_derivate);
+    max_diff_original = next_max_diff_original;
+    max_diff_derivate = next_max_diff_derivate;
+  }
+  spline.PrintCoeffs();
   Visualize(spline,
-            number_nodes,
+            number_intervals,
             func_id,
             borders_id);
 
@@ -169,54 +204,56 @@ double GetBorder(int borders_id, Border border) {
   }
 }
 
-void GenNodes(int number,
+void GenNodes(int number_intervals,
               double lbound,
               double rbound,
               int func_id,
               std::vector<double>* x,
               std::vector<double>* y) {
-  double step = (rbound - lbound) / number;
-  x->resize(number + 1);
-  y->resize(number + 1);
+  double step = (rbound - lbound) / number_intervals;
+  x->resize(number_intervals + 1);
+  y->resize(number_intervals + 1);
   double current_x = lbound;
-  for (int i = 0; i < number + 1; ++i) {
+  for (int i = 0; i < number_intervals + 1; ++i) {
     (*x)[i] = current_x;
     (*y)[i] = Function(func_id, current_x);
     current_x += step;
   }
 }
 
-void CheckAccuracy(CubicSpline& spline,
+void CheckAccuracy(const CubicSpline& spline,
                    int func_id,
-                   int borders_id) {
+                   int borders_id,
+                   double* max_diff_original,
+                   double* max_diff_derivate) {
   const double kAccuracyStep = 0.0001;
 
   double lbound = GetBorder(borders_id, LEFT);
   double rbound = GetBorder(borders_id, RIGHT);
-  double max_diff_original = 0;
-  double max_diff_derivate = 0;
+  *max_diff_original = 0;
+  *max_diff_derivate = 0;
   for (double x = lbound; x <= rbound; x += kAccuracyStep) {
     double diff_original = std::abs(spline.GetValue(x) -
                                     Function(func_id, x));
-    if (diff_original > max_diff_original) {
-      max_diff_original = diff_original;
+    if (diff_original > *max_diff_original) {
+      *max_diff_original = diff_original;
     }
 
     double diff_derivate = std::abs(spline.GetDerivate(x) -
                                     FunctionDerivate(func_id, x));
-    if (diff_derivate > max_diff_derivate) {
-      max_diff_derivate = diff_derivate;
+    if (diff_derivate > *max_diff_derivate) {
+      *max_diff_derivate = diff_derivate;
     }
   }
-  printf("max|f(x) - S(x)| = %e\n", max_diff_original);
-  printf("max|f'(x) - S'(x)| = %e\n", max_diff_derivate);
+  printf("max|f(x) - S(x)| = %e\n", *max_diff_original);
+  printf("max|f'(x) - S'(x)| = %e\n", *max_diff_derivate);
   fflush(stdout);
 }
 
 void BuildSpline(int func_id,
                  int borders_id,
                  int borders_condition_id,
-                 int number_nodes,
+                 int number_intervals,
                  CubicSpline* spline) {
   double lbound = GetBorder(borders_id, LEFT);
   double rbound = GetBorder(borders_id, RIGHT);
@@ -227,7 +264,7 @@ void BuildSpline(int func_id,
                                         func_id, rbound);
   std::vector<double> nodes_x;
   std::vector<double> nodes_y;
-  GenNodes(number_nodes,
+  GenNodes(number_intervals,
            lbound,
            rbound,
            func_id,
@@ -240,13 +277,13 @@ void BuildSpline(int func_id,
   printf("x in [%lf; %lf]\n", lbound, rbound);
   printf("Conditions:\nS''(%lf) = %lf\nS''(%lf) = %lf\n",
          lbound, lbound_xx, rbound, rbound_xx);
-  printf("Number of nodes: %d\n", number_nodes);
+  printf("Number of intervals: %d\n", number_intervals);
   printf("Net step: %lf\n", nodes_x[1] - nodes_x[0]);
   fflush(stdout);
 }
 
-void Visualize(CubicSpline& spline,
-               int number_nodes,
+void Visualize(const CubicSpline& spline,
+               int number_intervals,
                int func_id,
                int borders_id) {
   const double kDrawStep = 0.001;
@@ -262,7 +299,7 @@ void Visualize(CubicSpline& spline,
   std::vector<double> func_second_derivates_y;
   std::vector<double> nodes_x;
   std::vector<double> nodes_y;
-  GenNodes(number_nodes,
+  GenNodes(number_intervals,
            lbound,
            rbound,
            func_id,

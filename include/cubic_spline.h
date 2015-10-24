@@ -1,5 +1,9 @@
+// Copyright 2015 Dmitry Kurtaev
+
+#ifndef INCLUDE_CUBIC_SPLINE_H_
+#define INCLUDE_CUBIC_SPLINE_H_
+
 #include <vector>
-#include <iostream>
 #include "include/system_solver.h"
 
 static const double kZeroLimit = 1e-10;
@@ -11,15 +15,15 @@ class CubicSpline {
              double lbound_xx,
              double rbound_xx);
 
-  void Show();
+  void Show() const;
 
-  void PrintCoeffs(std::ostream* s);
+  void PrintCoeffs() const;
 
-  double GetValue(double x);
+  double GetValue(double x) const;
 
-  double GetDerivate(double x);
+  double GetDerivate(double x) const;
 
-  double GetSecondDerivate(double x);
+  double GetSecondDerivate(double x) const;
 
  private:
   void SolveSystem(const std::vector<double>& x,
@@ -39,3 +43,5 @@ class CubicSpline {
   std::vector<double> x_;
   std::vector<double> y_;
 };
+
+#endif  // INCLUDE_CUBIC_SPLINE_H_

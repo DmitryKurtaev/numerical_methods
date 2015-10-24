@@ -1,3 +1,8 @@
+// Copyright 2015 Dmitry Kurtaev
+
+#ifndef INCLUDE_PLOT_H_
+#define INCLUDE_PLOT_H_
+
 #include <vector>
 #include <string>
 
@@ -6,7 +11,7 @@ static Plot* current_plot;
 
 // This class draws points sets
 class Plot {
-public:
+ public:
   Plot();
 
   void Clear();
@@ -23,7 +28,7 @@ public:
 
   ~Plot();
 
-private:
+ private:
   static const int kMarkersLength = 4;
   static const int kCharsShifts = 10;
   static const int kTopIndent = 10;
@@ -69,3 +74,5 @@ private:
   std::vector<Set> points_sets_;
   int window_handle_;
 };
+
+#endif  // INCLUDE_PLOT_H_

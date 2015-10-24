@@ -1,3 +1,5 @@
+// Copyright 2015 Dmitry Kurtaev
+
 #include "include/system_solver.h"
 #include <stdlib.h>
 

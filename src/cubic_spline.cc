@@ -1,6 +1,9 @@
+// Copyright 2015 Dmitry Kurtaev
+
 #include "include/cubic_spline.h"
-#include "include/plot.h"
 #include <math.h>
+#include <stdio.h>
+#include "include/plot.h"
 
 void CubicSpline::Build(const std::vector<double>& x,
                         const std::vector<double>& y,
@@ -61,7 +64,7 @@ void CubicSpline::ComputeCoefficients(const std::vector<double>& y,
   }
 }
 
-void CubicSpline::Show() {
+void CubicSpline::Show() const {
   const double kSplineDrawStep = 0.001f;
 
   Plot plot;
@@ -82,14 +85,53 @@ void CubicSpline::Show() {
   plot.Show("cubic spline");
 }
 
-void CubicSpline::PrintCoeffs(std::ostream* s) {
-  *s << "| i | x[i-1] |  x[i]  |  a[i]  |  b[i]  |  c[i]  |  d[i]  |";
-  for (int i = 0; i < x_.size(); ++i) {
-    *s << i + 1;
+void CubicSpline::PrintCoeffs() const {
+  const int kMaxOutLines = 20;
+  const int kNumberCells = 7;
+  const std::string kFmtStr = "|% 13s";
+  std::string cells[] = {"i", "x[i-1]", "x[i]", "a[i]", "b[i]", "c[i]", "d[i]"};
+
+  // Header.
+  for (int i = 0; i < kNumberCells; ++i) {
+    printf(kFmtStr.c_str(), cells[i].c_str());
   }
+  printf("|\n");
+
+  for (int i = 0; i < kNumberCells; ++i) {
+    printf("|");
+    for (int j = 0; j < 13; ++j) {
+       printf("-");
+    }
+  }
+  printf("|\n");
+
+  // Lines.
+  if (x_.size() < kMaxOutLines) {
+    for (int i = 0; i < x_.size() - 1; ++i) {
+      printf("|% 13d|% 13e|% 13e|% 13e|% 13e|% 13e|% 13e|\n",
+             i + 1, x_[i], x_[i + 1], a_[i], b_[i], c_[i], d_[i]);
+    }
+  } else {
+    for (int i = 0; i < kMaxOutLines / 2; ++i) {
+      printf("|% 13d|% 13e|% 13e|% 13e|% 13e|% 13e|% 13e|\n",
+             i + 1, x_[i], x_[i + 1], a_[i], b_[i], c_[i], d_[i]);
+    }
+    for (int i = 0; i < kNumberCells; ++i) {
+      printf("|");
+      for (int j = 0; j < 13; ++j) {
+         printf(".");
+      }
+    }
+    printf("|\n");
+    for (int i = x_.size() - 1 - kMaxOutLines / 2; i < x_.size() - 1; ++i) {
+      printf("|% 13d|% 13e|% 13e|% 13e|% 13e|% 13e|% 13e|\n",
+             i + 1, x_[i], x_[i + 1], a_[i], b_[i], c_[i], d_[i]);
+    }
+  }
+  fflush(stdout);
 }
 
-double CubicSpline::GetValue(double x) {
+double CubicSpline::GetValue(double x) const {
   for (int i = 0; i < x_.size() - 1; ++i) {
     if (x_[i] <= x && x < x_[i + 1]) {
       return a_[i] +
@@ -101,7 +143,7 @@ double CubicSpline::GetValue(double x) {
   return 0;
 }
 
-double CubicSpline::GetDerivate(double x) {
+double CubicSpline::GetDerivate(double x) const {
   for (int i = 0; i < x_.size() - 1; ++i) {
     if (x_[i] <= x && x < x_[i + 1]) {
       return b_[i] +
@@ -112,7 +154,7 @@ double CubicSpline::GetDerivate(double x) {
   return 0;
 }
 
-double CubicSpline::GetSecondDerivate(double x) {
+double CubicSpline::GetSecondDerivate(double x) const {
   for (int i = 0; i < x_.size() - 1; ++i) {
     if (x_[i] <= x && x < x_[i + 1]) {
       return c_[i] +

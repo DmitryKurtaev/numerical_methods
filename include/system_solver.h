@@ -1,16 +1,22 @@
+// Copyright 2015 Dmitry Kurtaev
+
+#ifndef INCLUDE_SYSTEM_SOLVER_H_
+#define INCLUDE_SYSTEM_SOLVER_H_
+
 #include <vector>
 
 // This class solves linear system
 // with three-diagonal coefficients matrix
 class SystemSolver {
-public:
+ public:
   // Return empty vector if method have error.
   void Solve(const std::vector<double>& upper_diag,
              const std::vector<double>& main_diag,
              const std::vector<double>& lower_diag,
              const std::vector<double>& right_part,
              std::vector<double>* y);
-private:
+
+ private:
   void ForwardMove();
 
   void BackwardMove(std::vector<double>* y);
@@ -27,3 +33,5 @@ private:
   std::vector<double> alpha_;
   std::vector<double> beta_;
 };
+
+#endif  // INCLUDE_SYSTEM_SOLVER_H_
