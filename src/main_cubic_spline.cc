@@ -32,9 +32,7 @@ void GenNodes(int number_intervals,
 
 void CheckAccuracy(const CubicSpline& spline,
                    int func_id,
-                   int borders_id,
-                   double* max_diff_original,
-                   double* max_diff_derivate);
+                   int borders_id);
 
 void BuildSpline(int func_id,
                  int borders_id,
@@ -49,7 +47,7 @@ void Visualize(const CubicSpline& spline,
 
 int main(int argc, char** argv) {
   CommandLineParser parser(argc, argv);
-  if (parser.Exists("h")) {
+  if (parser.Exists("h") || argc == 1) {
     std::cout << "Functions [-f]:\n"
                  "0. f(x) = x^3 + 3x^2, if x in [-1, 0]\n"
                  "          -x^3 + 3x^2, if x in [0, 1];\n"
@@ -64,51 +62,38 @@ int main(int argc, char** argv) {
                  "Borders conditions [-bc]:\n"
                  "0. [0, 0] identity\n"
                  "1. [f''(lbound), f''(rbound)] robust\n" << std::endl;
+    return 0;
   }
   if (!parser.Exists("f")) {
     std::cout << "Set function [-f]" << std::endl;
     return 0;
   }
   if (!parser.Exists("b")) {
-    std::cout << "Set borders [-b]" << std::endl;
+    std::cout << "Set borders [-b], [-h] for help" << std::endl;
     return 0;
   }
   if (!parser.Exists("bc")) {
-    std::cout << "Set borders condition [-bc]" << std::endl;
+    std::cout << "Set borders condition [-bc], [-h] for help" << std::endl;
     return 0;
   }
   if (!parser.Exists("n")) {
-    std::cout << "Set number of intervals [-n]" << std::endl;
+    std::cout << "Set number of intervals [-n], [-h] for help" << std::endl;
     return 0;
   }
   const int func_id = parser.Get<int>("f");
   const int borders_id = parser.Get<int>("b");
   const int borders_condition_id = parser.Get<int>("bc");
- // const int number_intervals = parser.Get<int>("n");
+  const int number_intervals = parser.Get<int>("n");
 
   CubicSpline spline;
-  double max_diff_original = 0;
-  double max_diff_derivate = 0;
-  double number_intervals = 2;
-  for (number_intervals; true; number_intervals *= 1.1) {
-    BuildSpline(func_id,
-                borders_id,
-                borders_condition_id,
-                number_intervals,
-                &spline);
-    double next_max_diff_original;
-    double next_max_diff_derivate;
-    CheckAccuracy(spline,
-                  func_id,
-                  borders_id,
-                  &next_max_diff_original,
-                  &next_max_diff_derivate);
-    printf("%lf %lf\n\n",
-           max_diff_original / next_max_diff_original,
-           max_diff_derivate / next_max_diff_derivate);
-    max_diff_original = next_max_diff_original;
-    max_diff_derivate = next_max_diff_derivate;
-  }
+  BuildSpline(func_id,
+              borders_id,
+              borders_condition_id,
+              number_intervals,
+              &spline);
+  CheckAccuracy(spline,
+                func_id,
+                borders_id);
   spline.PrintCoeffs();
   Visualize(spline,
             number_intervals,
@@ -223,30 +208,28 @@ void GenNodes(int number_intervals,
 
 void CheckAccuracy(const CubicSpline& spline,
                    int func_id,
-                   int borders_id,
-                   double* max_diff_original,
-                   double* max_diff_derivate) {
+                   int borders_id) {
   const double kAccuracyStep = 0.0001;
 
   double lbound = GetBorder(borders_id, LEFT);
   double rbound = GetBorder(borders_id, RIGHT);
-  *max_diff_original = 0;
-  *max_diff_derivate = 0;
+  double max_diff_original = 0;
+  double max_diff_derivate = 0;
   for (double x = lbound; x <= rbound; x += kAccuracyStep) {
     double diff_original = std::abs(spline.GetValue(x) -
                                     Function(func_id, x));
-    if (diff_original > *max_diff_original) {
-      *max_diff_original = diff_original;
+    if (diff_original > max_diff_original) {
+      max_diff_original = diff_original;
     }
 
     double diff_derivate = std::abs(spline.GetDerivate(x) -
                                     FunctionDerivate(func_id, x));
-    if (diff_derivate > *max_diff_derivate) {
-      *max_diff_derivate = diff_derivate;
+    if (diff_derivate > max_diff_derivate) {
+      max_diff_derivate = diff_derivate;
     }
   }
-  printf("max|f(x) - S(x)| = %e\n", *max_diff_original);
-  printf("max|f'(x) - S'(x)| = %e\n", *max_diff_derivate);
+  printf("max|f(x) - S(x)| = %e\n", max_diff_original);
+  printf("max|f'(x) - S'(x)| = %e\n", max_diff_derivate);
   fflush(stdout);
 }
 
