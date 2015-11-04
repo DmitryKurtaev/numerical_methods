@@ -33,7 +33,7 @@ class Plot {
   static const int kCharsShifts = 10;
   static const int kTopIndent = 10;
   static const int kBottomIndent = 50;
-  static const int kLeftIndent = 80;
+  static const int kLeftIndent = 120;
   static const int kRightIndent = 10;
   static const int kArrowsWidth = 5;
   static const int kArrowsHeight = 10;

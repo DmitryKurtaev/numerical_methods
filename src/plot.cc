@@ -184,7 +184,7 @@ void Plot::DrawMarkers() {
     oss << std::setprecision(kMarkersLength) << min_x_ + values_step * i;
     std::string str(oss.str());
     DrawString(str,
-                x - 0.5 * kCharsShifts * (str.length() + 1), kBottomIndent / 2);
+               x - 0.5 * kCharsShifts * (str.length() + 1), kBottomIndent / 2);
   }
 }
 
@@ -231,6 +231,12 @@ Plot::~Plot() {
 }
 
 void Plot::Clear() {
+  min_x_ = DBL_MAX;
+  max_x_ = DBL_MIN;
+  min_y_ = DBL_MAX;
+  max_y_ = DBL_MIN;
+  view_width_ = 500;
+  view_height_ = 500;
   for (int i = 0; i < points_sets_.size(); ++i) {
     points_sets_[i].x.clear();
     points_sets_[i].y.clear();

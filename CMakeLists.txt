@@ -37,11 +37,13 @@ project(heat_equation)
 set(sources
   src/command_line_parser.cc
   src/main_heat_equation.cc
+  src/plot.cc
   src/system_solver.cc
 )
 
 set(headers
   include/command_line_parser.h
+  include/plot.h
   include/system_solver.h
 )
 
