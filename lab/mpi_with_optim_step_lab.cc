@@ -92,8 +92,7 @@ void Solve(int n_intervals_by_x, int n_intervals_by_y,
   const double inv_h_quad = 1.0 / (h * h);
   const double inv_k_quad = 1.0 / (k * k);
   const int dim = (n - 1) * (m - 1);
-  const double step = 1.0 / ((2 + sin(M_PI / n) - cos(M_PI / n)) * inv_h_quad +
-                             (2 + sin(M_PI / m) - cos(M_PI / m)) * inv_k_quad);
+  const double step = 0.5 / (inv_h_quad + inv_k_quad);
 
   double* x = new double[dim];
   memset(x, 0, sizeof(double) * dim);
