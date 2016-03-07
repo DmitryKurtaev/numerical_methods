@@ -26,7 +26,7 @@ double GetBorderCondition(Border border, double coordinate, Task task);
 void Solve(int n_intervals_by_x, int n_intervals_by_y,
            const std::vector<double>& robust_values,
            std::vector<double>& result, Task task,
-           int n_iters = INT_MAX, double eps = DBL_MAX);
+           int n_iters = 1, double eps = 0.1);
 
 void Print(int n_intervals_by_x, int n_intervals_by_y,
            std::vector<double>& robust_values,
@@ -57,138 +57,152 @@ int main(int argc, char** argv) {
 
   const int n_intervals_by_x = parser.Get<int>("n");
   const int n_intervals_by_y = parser.Get<int>("m");
+  const int n_iters = parser.Get<int>("iters");
   Task task = (parser.Exists("main") ? MAIN : TEST);
 
   std::vector<double> robust_values;
+  std::vector<double> result;
   if (task == TEST) {
     const int n = n_intervals_by_y;
     const int m = n_intervals_by_y;
     const double h = (kRightBorder - kLeftBorder) / n;
     const double k = (kTopBorder - kBottomBorder) / m;
-    for (int j = 1; j < n_intervals_by_y - 1; ++j) {
+    for (int j = 1; j < n_intervals_by_y; ++j) {
       const double y = j * k;
-      for (int i = 1; i < n_intervals_by_x - 1; ++i) {
+      for (int i = 1; i < n_intervals_by_x; ++i) {
         robust_values.push_back(exp(pow(sin(M_PI * i * h * y), 2)));
       }
     }
-    Print(n_intervals_by_x, n_intervals_by_y, robust_values, robust_values,
-          TEST);
+
+    Solve(n_intervals_by_x, n_intervals_by_y, robust_values, result, TEST,
+          n_iters);
+
+    Print(n_intervals_by_x, n_intervals_by_y, robust_values, result, TEST);
   }
-  // Solve(n_intervals_by_x, n_intervals_by_y, )
 }
 
 void Solve(int n_intervals_by_x, int n_intervals_by_y,
            const std::vector<double>& robust_values,
            std::vector<double>& result, Task task,
            int n_iters, double eps) {
-  const int n = n_intervals_by_y;
+  const int n = n_intervals_by_x;
   const int m = n_intervals_by_y;
   const double h = (kRightBorder - kLeftBorder) / n;
   const double k = (kTopBorder - kBottomBorder) / m;
-  const double inv_h_quad = 1.0 / h * h;
-  const double inv_k_quad = 1.0 / k * k;
+  const double inv_h_quad = 1.0 / (h * h);
+  const double inv_k_quad = 1.0 / (k * k);
   const int dim = (n - 1) * (m - 1);
   const double step = 1.0 / ((2 + sin(M_PI / n) - cos(M_PI / n)) * inv_h_quad +
                              (2 + sin(M_PI / m) - cos(M_PI / m)) * inv_k_quad);
 
   double* x = new double[dim];
-  memset(x, 4 * dim, 0);
+  memset(x, 0, sizeof(double) * dim);
 
   // Setup right part of equations system.
   double* b = new double[dim];
-  memset(b, 4 * dim, 0);
+  memset(b, 0, sizeof(double) * dim);
   for (int j = 0; j < m - 1; ++j) {
-    const double y = j * k;
+    const double y = (j + 1) * k;
     const int offset = j * (n - 1);
     b[offset] -= GetBorderCondition(LEFT, y, task) * inv_h_quad;
     b[offset + n - 2] -= GetBorderCondition(RIGHT, y, task) * inv_h_quad;
     for (int i = 0; i < n - 1; ++i) {
-      b[offset + i] += GetExternalHeat(i * h, y, task);
+      b[offset + i] += GetExternalHeat((i + 1) * h, y, task);
     }
   }
   const int offset = (n - 1) * (m - 2); 
   for (int i = 0; i < n - 1; ++i) {
-    const double x = i * h;
+    const double x = (i + 1) * h;
     b[i] -= GetBorderCondition(BOTTOM, x, task) * inv_k_quad;
     b[offset + i] -= GetBorderCondition(TOP, x, task) * inv_k_quad;
   }
 
-  // Collect robust values.
-
   double accuracy = DBL_MAX;
   for (int iter = 0; iter < n_iters && (robust_values.size() != dim ||
                                         accuracy >= eps); ++iter) {
-    // Do iteration.
+    double* buf = new double[dim];
+    memcpy(buf, x, sizeof(double) * dim);
 
+    // Do iteration.
     // |-- Bottom border--------------------------------------------------------
     //     |-- Left bottom point.
-    double term = inv_k_quad * (x[n - 1] - 2 * x[0]) +
-                  inv_h_quad * (x[1] - 2 * x[0]);
-    x[0] += step * (b[0] - term);
+    int idx = 0;
+    double term = inv_k_quad * x[idx + n - 1] +  // Top neighbor.
+                  inv_h_quad * x[idx + 1] -  // Right neighbor.
+                  2 * x[idx] * (inv_k_quad + inv_h_quad);
+    buf[idx] += step * (b[idx] - term);
 
     //     |-- Bottom line, center points.
     for (int i = 1; i < n - 2; ++i) {
-      term = inv_k_quad * (x[n - 1 + i] - 2 * x[i]) + 
-             inv_h_quad * (x[i + 1] + x[i - 1] - 2 * x[i]);
-      x[i] += step * (b[i] - term);
+      idx = i;
+      term = inv_k_quad * x[idx + n - 1] +  // Top neighbor.
+             inv_h_quad * x[idx + 1] +  // Right neighbor.
+             inv_h_quad * x[idx - 1] -  // Left neighbor.
+             2 * x[idx] * (inv_k_quad + inv_h_quad);
+      buf[idx] += step * (b[idx] - term);
     }
 
     //     |-- Right bottom point.
-    term = inv_k_quad * (x[2 * n - 3] - 2 * x[n - 2]) + 
-           inv_h_quad * (x[n - 3] - 2 * x[n - 2]);
-    x[n - 2] += step * (b[n - 2] - term);
+    idx = n - 2;
+    term = inv_k_quad * x[idx + n - 1] +  // Top neighbor.
+           inv_h_quad * x[idx - 1] -  // Left neighbor.
+           2 * x[idx] * (inv_k_quad + inv_h_quad);
+    buf[idx] += step * (b[idx] - term);
 
     // |-- Center lines---------------------------------------------------------
     for (int j = 1; j < m - 2; ++j) {
-      const int offset = j * (n - 1);
-
       //   |-- Left border.
-      double term = inv_k_quad * (x[offset - n + 1] + x[offset + n - 1]) +
-                    inv_h_quad * x[offset + 1] +
-                    2 * (inv_h_quad + inv_k_quad) * x[offset];
-      x[offset] += step * (b[offset] - term);
+      idx = j * (n - 1);
+      term = inv_k_quad * x[idx + n - 1] +  // Top neighbor.
+             inv_k_quad * x[idx - n + 1] +  // Bottom neighbor.
+             inv_h_quad * x[idx + 1] -  // Right neighbor.
+             2 * (inv_h_quad + inv_k_quad) * x[idx];
+      buf[idx] += step * (b[idx] - term);
 
       //   |-- Centers.
       for (int i = 1; i < n - 2; ++i) {
-        term = inv_k_quad * x[offset - n + 1 + i] + 
-               inv_k_quad * x[offset + n - 1 + i] + 
-               inv_h_quad * x[offset + i + 1] +
-               inv_h_quad * x[offset + i - 1] -
-               2 * (inv_h_quad + inv_k_quad) * x[offset + i];
-        x[offset + i] += step * (b[offset + i] - term);
+        idx = j * (n - 1) + i;
+        term = inv_k_quad * x[idx + n - 1] +  // Top neighbor.
+               inv_k_quad * x[idx - n + 1] +  // Bottom neighbor.
+               inv_h_quad * x[idx + 1] +  // Right neighbor.
+               inv_h_quad * x[idx - 1] -  // Left neighbor.
+               2 * (inv_h_quad + inv_k_quad) * x[idx];
+        buf[idx] += step * (b[idx] - term);
       }
 
       //   |-- Right border.
-      term = inv_k_quad * (x[offset - 1] + x[offset + 2 * n - 3]) +
-             inv_h_quad * x[offset + n - 3] -
-             2 * (inv_h_quad + inv_k_quad) * x[offset + n - 2];
-      x[offset + n - 2] += step * (b[offset + n - 2] - term);
+      idx = j * (n - 1) + n - 2;
+      term = inv_k_quad * x[idx + n - 1] +  // Top neighbor.
+             inv_k_quad * x[idx - n + 1] +  // Bottom neighbor.
+             inv_h_quad * x[idx - 1] -  // Left neighbor.
+             2 * (inv_h_quad + inv_k_quad) * x[idx];
+      buf[idx] += step * (b[idx] - term);
     }
     
     // |-- Top border-----------------------------------------------------------
-    int offset = (m - 2) * (n - 1);
-
-    //   |-- Left top point.
-    term = inv_k_quad * x[offset - n + 1] + 
-           inv_h_quad * x[offset + 1] +
-           2 * (inv_h_quad + inv_k_quad) * x[offset];
-    x[offset] += step * (b[offset] - term);
+    //     |-- Left top point.
+    idx = (m - 2) * (n - 1);
+    term = inv_k_quad * x[idx - n + 1] +  // Bottom neighbor.
+           inv_h_quad * x[idx + 1] -  // Right neighbor.
+           2 * (inv_h_quad + inv_k_quad) * x[idx];
+    buf[idx] += step * (b[idx] - term);
 
     //   |-- Centers.
     for (int i = 1; i < n - 2; ++i) {
-      double term = inv_k_quad * x[offset - n + 1 + i] + 
-                    inv_h_quad * x[offset + i + 1] +
-                    inv_h_quad * x[offset + i - 1] -
-                    2 * (inv_h_quad + inv_k_quad) * x[offset + i];
-      x[offset + i] += step * (b[offset + i] - term);
+      idx = (m - 2) * (n - 1) + i;
+      term = inv_k_quad * x[idx - n + 1] +  // Bottom neighbor.
+             inv_h_quad * x[idx + 1] +  // Right neighbor.
+             inv_h_quad * x[idx - 1] -  // Left neighbor.
+             2 * (inv_h_quad + inv_k_quad) * x[idx];
+      buf[idx] += step * (b[idx] - term);
     }
 
     //   |-- Right top point.
-    offset = (n - 1) * (m - 1);
-      term = inv_k_quad * x[offset - n] +
-             inv_h_quad * x[offset - 2] -
-             2 * (inv_h_quad + inv_k_quad) * x[offset - 1];
-    x[offset - 1] += step * (b[offset - 1] - term);
+    idx = (m - 1) * (n - 1) - 1;
+    term = inv_k_quad * x[idx - n + 1] +  // Bottom neighbor.
+           inv_h_quad * x[idx - 1] -  // Left neighbor.
+           2 * (inv_h_quad + inv_k_quad) * x[idx];
+    buf[idx] += step * (b[idx] - term);
 
     // Compute accuracy.
     if (robust_values.size() == dim) {
@@ -197,6 +211,14 @@ void Solve(int n_intervals_by_x, int n_intervals_by_y,
         accuracy = std::max(accuracy, fabs(x[i] - robust_values[i]));
       }
     }
+
+    memcpy(x, buf, sizeof(double) * dim);
+    delete[] buf;
+  }
+
+  result.resize(dim);
+  for (int i = 0; i < dim; ++i) {
+    result[i] = x[i];
   }
 
   delete[] b;
@@ -225,9 +247,8 @@ double GetExternalHeat(double x, double y, Task task) {
   switch (task) {
     case TEST: {
       double term = cos(2 * M_PI * x * y);
-      double sin_quad = 1 - pow(term, 2);
-      return M_PI * M_PI * (x * x + y * y) * exp(sin_quad) *
-             (sin_quad + 2 * term);
+      return M_PI * M_PI * (x * x + y * y) * exp(pow(sin(M_PI * x * y), 2)) *
+             (1 - pow(term, 2) + 2 * term);
     }
     case MAIN: return -pow(sin(M_PI * x * y), 2);
     default: return 0;
@@ -300,6 +321,16 @@ void Print(int n_intervals_by_x, int n_intervals_by_y,
     std::ostringstream ss;
     ss << (m - 1 - j) * k;
     data[j + 1][0] = ss.str();
+  }
+  TablePrinter::Print(data);
+
+  data[0][0] = "Results";
+  for (int i = 0; i < n - 1; ++i) {
+    for (int j = 0; j < m - 1; ++j) {
+      std::ostringstream ss;
+      ss << result[(m - 2 - j) * (n - 1) + i];
+      data[j + 1][i + 1] = ss.str();
+    }
   }
   TablePrinter::Print(data);
 

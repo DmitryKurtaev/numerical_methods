@@ -8,10 +8,10 @@ void TablePrinter::Print(const std::vector<std::vector<std::string> >& data,
                          int max_n_rows, int max_n_cols, int col_width) {
   bool use_cols_separator = false;
 
+  std::cout << std::endl;
   PrintRows(data, 0, 0, max_n_cols, col_width, use_cols_separator);
   DrawRow('-', data[0].size(), col_width, max_n_cols);
   
-
   if (data.size() > max_n_rows) {
     PrintRows(data, 1, max_n_rows / 2 - 1, max_n_cols, col_width,
               use_cols_separator);
@@ -22,6 +22,7 @@ void TablePrinter::Print(const std::vector<std::vector<std::string> >& data,
     PrintRows(data, 1, data.size() - 1, max_n_cols, col_width,
               use_cols_separator);
   }
+  std::cout << std::endl;
 }
 
 void TablePrinter::PrintRows(const std::vector<std::vector<std::string> >& data,
@@ -51,7 +52,7 @@ void TablePrinter::PrintRows(const std::vector<std::vector<std::string> >& data,
         std::cout << std::setw(col_width) << data[i][j] << "|";
       }
     }
-    std::cout << std::endl; 
+    std::cout << std::endl;
   }
 }
 
