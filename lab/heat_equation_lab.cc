@@ -420,7 +420,7 @@ void PrintResults(int task_id,
                   const std::vector<double>& numerical_func,
                   const std::vector<double>& robust_func,
                   const std::vector<double>& nodes) {
-  const int kMaxOutLines = 200;
+  const int kMaxOutLines = 20;
   const int kNumberCells = 5;
   const std::string kFmtStr("|% 13s");
   std::string cells[] = {"i", "x[i]", "u(x[i])", "v(x[i])",
