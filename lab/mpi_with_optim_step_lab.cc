@@ -25,14 +25,16 @@ double GetExternalHeat(double x, double y, Task task);
 
 double GetBorderCondition(Border border, double coordinate, Task task);
 
-void Solve(int n_intervals_by_x, int n_intervals_by_y,
-           const std::vector<double>& robust_values,
-           std::vector<double>& result, Task task,
-           int n_iters = 1, double eps = 0);
+// eps - max|x[s+1]-x[s]| element wise.
+void Solve(int n_intervals_by_x, int n_intervals_by_y, Task task,
+           std::vector<double>& result,
+           int& n_processed_iters, double& achieved_eps,
+           int max_n_iters = 1, double target_eps = 0);
 
 void Print(int n_intervals_by_x, int n_intervals_by_y,
            std::vector<double>& robust_values,
-           std::vector<double>& result, Task task);
+           std::vector<double>& result, Task task,
+           int n_processed_iters, double achieved_eps);
 
 void PrintAbout();
 
@@ -59,14 +61,21 @@ int main(int argc, char** argv) {
 
   const int n_intervals_by_x = parser.Get<int>("n");
   const int n_intervals_by_y = parser.Get<int>("m");
-  const int n_iters = parser.Get<int>("iters");
+  const int n_iters = parser.Get<int>("iters", INT_MAX);
+  const double eps = parser.Get<double>("eps", 0);
   Task task = (parser.Exists("main") ? MAIN : TEST);
 
   std::vector<double> robust_values;
   std::vector<double> result;
+  int n_processed_iters;
+  double achieved_eps;
   if (task == TEST) {
     const int n = n_intervals_by_x;
     const int m = n_intervals_by_y;
+
+    Solve(n_intervals_by_x, n_intervals_by_y, TEST, result, n_processed_iters,
+          achieved_eps, n_iters, eps);
+
     const double h = (kRightBorder - kLeftBorder) / n;
     const double k = (kTopBorder - kBottomBorder) / m;
     for (int j = 0; j <= m; ++j) {
@@ -75,18 +84,15 @@ int main(int argc, char** argv) {
         robust_values.push_back(exp(pow(sin(M_PI * i * h * y), 2)));
       }
     }
-
-    Solve(n_intervals_by_x, n_intervals_by_y, robust_values, result, TEST,
-          n_iters);
-
-    Print(n_intervals_by_x, n_intervals_by_y, robust_values, result, TEST);
   }
+  Print(n_intervals_by_x, n_intervals_by_y, robust_values, result, TEST,
+        n_processed_iters, achieved_eps);
 }
 
-void Solve(int n_intervals_by_x, int n_intervals_by_y,
-           const std::vector<double>& robust_values,
-           std::vector<double>& result, Task task,
-           int n_iters, double eps) {
+void Solve(int n_intervals_by_x, int n_intervals_by_y, Task task,
+           std::vector<double>& result,
+           int& n_processed_iters, double& achieved_eps,
+           int max_n_iters, double target_eps) {
   const int n = n_intervals_by_x;
   const int m = n_intervals_by_y;
   const double h = (kRightBorder - kLeftBorder) / n;
@@ -118,11 +124,12 @@ void Solve(int n_intervals_by_x, int n_intervals_by_y,
     b[offset + i] -= GetBorderCondition(TOP, x, task) * inv_k_quad;
   }
 
-  double accuracy = DBL_MAX;
-  for (int iter = 0; iter < n_iters && (robust_values.empty() ||
-                                        accuracy >= eps); ++iter) {
-    double* buf = new double[dim];
-    memcpy(buf, x, sizeof(double) * dim);
+  achieved_eps = DBL_MAX;
+  for (n_processed_iters = 0;
+       n_processed_iters < max_n_iters && achieved_eps > target_eps;
+       ++n_processed_iters) {
+    double* new_x = new double[dim];
+    memcpy(new_x, x, sizeof(double) * dim);
 
     // Do iteration.
     // |-- Bottom border--------------------------------------------------------
@@ -131,7 +138,7 @@ void Solve(int n_intervals_by_x, int n_intervals_by_y,
     double term = inv_k_quad * x[idx + n - 1] +  // Top neighbor.
                   inv_h_quad * x[idx + 1] -  // Right neighbor.
                   2 * x[idx] * (inv_k_quad + inv_h_quad);
-    buf[idx] += step * (b[idx] - term);
+    new_x[idx] += step * (b[idx] - term);
 
     //     |-- Bottom line, center points.
     for (int i = 1; i < n - 2; ++i) {
@@ -140,7 +147,7 @@ void Solve(int n_intervals_by_x, int n_intervals_by_y,
              inv_h_quad * x[idx + 1] +  // Right neighbor.
              inv_h_quad * x[idx - 1] -  // Left neighbor.
              2 * x[idx] * (inv_k_quad + inv_h_quad);
-      buf[idx] += step * (b[idx] - term);
+      new_x[idx] += step * (b[idx] - term);
     }
 
     //     |-- Right bottom point.
@@ -148,7 +155,7 @@ void Solve(int n_intervals_by_x, int n_intervals_by_y,
     term = inv_k_quad * x[idx + n - 1] +  // Top neighbor.
            inv_h_quad * x[idx - 1] -  // Left neighbor.
            2 * x[idx] * (inv_k_quad + inv_h_quad);
-    buf[idx] += step * (b[idx] - term);
+    new_x[idx] += step * (b[idx] - term);
 
     // |-- Center lines---------------------------------------------------------
     for (int j = 1; j < m - 2; ++j) {
@@ -158,7 +165,7 @@ void Solve(int n_intervals_by_x, int n_intervals_by_y,
              inv_k_quad * x[idx - n + 1] +  // Bottom neighbor.
              inv_h_quad * x[idx + 1] -  // Right neighbor.
              2 * (inv_h_quad + inv_k_quad) * x[idx];
-      buf[idx] += step * (b[idx] - term);
+      new_x[idx] += step * (b[idx] - term);
 
       //   |-- Centers.
       for (int i = 1; i < n - 2; ++i) {
@@ -168,7 +175,7 @@ void Solve(int n_intervals_by_x, int n_intervals_by_y,
                inv_h_quad * x[idx + 1] +  // Right neighbor.
                inv_h_quad * x[idx - 1] -  // Left neighbor.
                2 * (inv_h_quad + inv_k_quad) * x[idx];
-        buf[idx] += step * (b[idx] - term);
+        new_x[idx] += step * (b[idx] - term);
       }
 
       //   |-- Right border.
@@ -177,7 +184,7 @@ void Solve(int n_intervals_by_x, int n_intervals_by_y,
              inv_k_quad * x[idx - n + 1] +  // Bottom neighbor.
              inv_h_quad * x[idx - 1] -  // Left neighbor.
              2 * (inv_h_quad + inv_k_quad) * x[idx];
-      buf[idx] += step * (b[idx] - term);
+      new_x[idx] += step * (b[idx] - term);
     }
     
     // |-- Top border-----------------------------------------------------------
@@ -186,7 +193,7 @@ void Solve(int n_intervals_by_x, int n_intervals_by_y,
     term = inv_k_quad * x[idx - n + 1] +  // Bottom neighbor.
            inv_h_quad * x[idx + 1] -  // Right neighbor.
            2 * (inv_h_quad + inv_k_quad) * x[idx];
-    buf[idx] += step * (b[idx] - term);
+    new_x[idx] += step * (b[idx] - term);
 
     //   |-- Centers.
     for (int i = 1; i < n - 2; ++i) {
@@ -195,7 +202,7 @@ void Solve(int n_intervals_by_x, int n_intervals_by_y,
              inv_h_quad * x[idx + 1] +  // Right neighbor.
              inv_h_quad * x[idx - 1] -  // Left neighbor.
              2 * (inv_h_quad + inv_k_quad) * x[idx];
-      buf[idx] += step * (b[idx] - term);
+      new_x[idx] += step * (b[idx] - term);
     }
 
     //   |-- Right top point.
@@ -203,23 +210,16 @@ void Solve(int n_intervals_by_x, int n_intervals_by_y,
     term = inv_k_quad * x[idx - n + 1] +  // Bottom neighbor.
            inv_h_quad * x[idx - 1] -  // Left neighbor.
            2 * (inv_h_quad + inv_k_quad) * x[idx];
-    buf[idx] += step * (b[idx] - term);
+    new_x[idx] += step * (b[idx] - term);
 
     // Compute accuracy.
-    if (!robust_values.empty()) {
-      accuracy = 0;
-      int idx = 0;
-      for (int j = 1; j < m; ++j) {
-        for (int i = 1; i < n; ++i) {
-          accuracy = std::max(accuracy,
-                              fabs(x[idx] - robust_values[j * (n + 1) + i]));
-          ++idx;
-        }
-      }
+    achieved_eps = 0;
+    for (int i = 0; i < dim; ++i) {
+      achieved_eps = std::max(achieved_eps, fabs(x[i] - new_x[i]));
     }
 
-    memcpy(x, buf, sizeof(double) * dim);
-    delete[] buf;
+    memcpy(x, new_x, sizeof(double) * dim);
+    delete[] new_x;
   }
 
   result.resize(dim);
@@ -288,7 +288,8 @@ void PrintAbout() {
 
 void Print(int n_intervals_by_x, int n_intervals_by_y,
            std::vector<double>& robust_values,
-           std::vector<double>& result, Task task) {
+           std::vector<double>& result, Task task,
+           int n_processed_iters, double achieved_eps) {
   const int n = n_intervals_by_x;
   const int m = n_intervals_by_y;
   const double h = (kRightBorder - kLeftBorder) / n;
@@ -339,6 +340,8 @@ void Print(int n_intervals_by_x, int n_intervals_by_y,
   TablePrinter::Print(data);
 
   // Results.
+  printf("Number of processed iterations: %d\n", n_processed_iters);
+  printf("max|x[s+1]-x[s]| = %e\n", achieved_eps);
   std::cout << "max|V-" << (task == TEST ? "U" : "V2") << "| = " << std::flush;
   printf("%e (at x[%d]=%f, y[%d]=%f)\n", max_diff, argmax_i, h * argmax_i,
          argmax_j, k * argmax_j);
