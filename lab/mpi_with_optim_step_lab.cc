@@ -26,7 +26,7 @@ double GetBorderCondition(Border border, double coordinate, Task task);
 void Solve(int n_intervals_by_x, int n_intervals_by_y,
            const std::vector<double>& robust_values,
            std::vector<double>& result, Task task,
-           int n_iters = 1, double eps = 0.1);
+           int n_iters = 1, double eps = 0);
 
 void Print(int n_intervals_by_x, int n_intervals_by_y,
            std::vector<double>& robust_values,
@@ -63,13 +63,13 @@ int main(int argc, char** argv) {
   std::vector<double> robust_values;
   std::vector<double> result;
   if (task == TEST) {
-    const int n = n_intervals_by_y;
+    const int n = n_intervals_by_x;
     const int m = n_intervals_by_y;
     const double h = (kRightBorder - kLeftBorder) / n;
     const double k = (kTopBorder - kBottomBorder) / m;
-    for (int j = 1; j < n_intervals_by_y; ++j) {
+    for (int j = 1; j < m; ++j) {
       const double y = j * k;
-      for (int i = 1; i < n_intervals_by_x; ++i) {
+      for (int i = 1; i < n; ++i) {
         robust_values.push_back(exp(pow(sin(M_PI * i * h * y), 2)));
       }
     }
@@ -92,7 +92,7 @@ void Solve(int n_intervals_by_x, int n_intervals_by_y,
   const double inv_h_quad = 1.0 / (h * h);
   const double inv_k_quad = 1.0 / (k * k);
   const int dim = (n - 1) * (m - 1);
-  const double step = 0.5 / (inv_h_quad + inv_k_quad);
+  const double step = -0.5 / (inv_h_quad + inv_k_quad);
 
   double* x = new double[dim];
   memset(x, 0, sizeof(double) * dim);
