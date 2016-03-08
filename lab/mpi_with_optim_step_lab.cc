@@ -1,7 +1,9 @@
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #include <iostream>
+#include <iomanip>
 #include <vector>
 #include <climits>
 #include <cfloat>
@@ -337,10 +339,9 @@ void Print(int n_intervals_by_x, int n_intervals_by_y,
   TablePrinter::Print(data);
 
   // Results.
-  std::cout << "max|V-" << (task == TEST ? "U" : "V2") << "| = "
-            << max_diff << " (at x[" << argmax_i << "]=" << h * argmax_i
-            << ", y[" << argmax_j << "]=" << k * argmax_j << ")"
-            << std::endl;
+  std::cout << "max|V-" << (task == TEST ? "U" : "V2") << "| = " << std::flush;
+  printf("%e (at x[%d]=%f, y[%d]=%f)\n", max_diff, argmax_i, h * argmax_i,
+         argmax_j, k * argmax_j);
 
   data[0][0] = "Results";
   data.erase(data.end());
@@ -363,7 +364,8 @@ void Print(int n_intervals_by_x, int n_intervals_by_y,
   for (int i = 0; i < n - 1; ++i) {
     for (int j = 0; j < m - 1; ++j) {
       std::ostringstream ss;
-      ss << fabs(result[(m - 2 - j) * (n - 1) + i] -
+      ss << std::scientific
+         << fabs(result[(m - 2 - j) * (n - 1) + i] -
                  robust_values[(m - j - 1) * (n + 1) + i + 1]);
       data[j + 1][i + 1] = ss.str();
     }
