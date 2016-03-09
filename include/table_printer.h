@@ -7,7 +7,7 @@
 class TablePrinter {
  public:
   static void Print(const std::vector<std::vector<std::string> >& data,
-                    int max_n_rows = 25, int max_n_cols = 8,
+                    int max_n_rows = 20, int max_n_cols = 6,
                     int col_width = 13);
 
  private:

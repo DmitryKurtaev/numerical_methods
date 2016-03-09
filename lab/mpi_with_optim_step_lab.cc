@@ -34,7 +34,7 @@ void Solve(int n_intervals_by_x, int n_intervals_by_y, Task task,
 void Print(int n_intervals_by_x, int n_intervals_by_y,
            std::vector<double>& robust_values,
            std::vector<double>& result, Task task,
-           int n_processed_iters, double achieved_eps);
+           int n_processed_iters, double achieved_eps, bool print_tables);
 
 void PrintAbout();
 
@@ -63,30 +63,53 @@ int main(int argc, char** argv) {
   const int n_intervals_by_y = parser.Get<int>("m");
   const int n_iters = parser.Get<int>("iters", INT_MAX);
   const double eps = parser.Get<double>("eps", 0);
-  Task task = (parser.Exists("main") ? MAIN : TEST);
+  const Task task = (parser.Exists("main") ? MAIN : TEST);
+  const bool print_tables = !parser.Exists("s");
 
   std::vector<double> robust_values;
   std::vector<double> result;
   int n_processed_iters;
   double achieved_eps;
+  const int n = n_intervals_by_x;
+  const int m = n_intervals_by_y;
+  const double h = (kRightBorder - kLeftBorder) / n;
+  const double k = (kTopBorder - kBottomBorder) / m;
+
+  Solve(n, m, task, result, n_processed_iters, achieved_eps, n_iters, eps);
   if (task == TEST) {
-    const int n = n_intervals_by_x;
-    const int m = n_intervals_by_y;
-
-    Solve(n_intervals_by_x, n_intervals_by_y, TEST, result, n_processed_iters,
-          achieved_eps, n_iters, eps);
-
-    const double h = (kRightBorder - kLeftBorder) / n;
-    const double k = (kTopBorder - kBottomBorder) / m;
     for (int j = 0; j <= m; ++j) {
       const double y = j * k;
       for (int i = 0; i <= n; ++i) {
         robust_values.push_back(exp(pow(sin(M_PI * i * h * y), 2)));
       }
     }
+    Print(n, m, robust_values, result, TEST, n_processed_iters, achieved_eps,
+          print_tables);
+  } else {
+    std::vector<double> result_on_dense_net;
+    int n_processed_iters_dense_net;
+    double achieved_eps_dense_net;
+    Solve(2 * n, 2 * m, MAIN, result_on_dense_net, n_processed_iters_dense_net,
+          achieved_eps_dense_net, n_processed_iters);
+
+    std::vector<double> extracted_values((n + 1) * (m + 1), 0);
+    for (int j = 1; j < m; ++j) {
+      const double y = kBottomBorder + j * k;
+      extracted_values[j * (n + 1)] = GetBorderCondition(LEFT, y, MAIN);
+      extracted_values[j * (n + 1) + n] = GetBorderCondition(RIGHT, y, MAIN);
+      for (int i = 1; i < n; ++i) {
+        const int idx = 2 * j * (2 * (n - 1) + 1) + 2 * i;
+        extracted_values[j * (n + 1) + i] = result_on_dense_net[idx];
+      }
+    }
+    for (int i = 0; i <= n; ++i) {
+      const double x = kLeftBorder + i * h;
+      extracted_values[i] = GetBorderCondition(BOTTOM, x, MAIN);
+      extracted_values[(n + 1) * m + i] = GetBorderCondition(TOP, x, MAIN);
+    }
+    Print(n, m, extracted_values, result, MAIN, n_processed_iters,
+          achieved_eps, print_tables);
   }
-  Print(n_intervals_by_x, n_intervals_by_y, robust_values, result, TEST,
-        n_processed_iters, achieved_eps);
 }
 
 void Solve(int n_intervals_by_x, int n_intervals_by_y, Task task,
@@ -220,7 +243,12 @@ void Solve(int n_intervals_by_x, int n_intervals_by_y, Task task,
 
     memcpy(x, new_x, sizeof(double) * dim);
     delete[] new_x;
+
+    printf("\rProcessed iterations: %d, max|x[s+1]-x[s]| = %e",
+           n_processed_iters + 1, achieved_eps);
+    fflush(stdout);
   }
+  std::cout << std::endl;
 
   result.resize(dim);
   for (int i = 0; i < dim; ++i) {
@@ -282,20 +310,21 @@ void PrintAbout() {
              "[-n] - number of intervals by x axis\n"
              "[-m] - number of intervals by y axis\n"
              "[-iters] - stopping criterion by number of iterations\n"
-             "[-eps] - stopping criterion by accuracy"
+             "[-eps] - stopping criterion by accuracy\n"
+             "[--s] - silence mode without tables printing"
           << std::endl;
 }
 
 void Print(int n_intervals_by_x, int n_intervals_by_y,
            std::vector<double>& robust_values,
            std::vector<double>& result, Task task,
-           int n_processed_iters, double achieved_eps) {
+           int n_processed_iters, double achieved_eps, bool print_tables) {
   const int n = n_intervals_by_x;
   const int m = n_intervals_by_y;
   const double h = (kRightBorder - kLeftBorder) / n;
   const double k = (kTopBorder - kBottomBorder) / m;
 
-  std::cout << "Net step by x: " << h << std::endl;
+  std::cout << "\nNet step by x: " << h << std::endl;
   std::cout << "Net step by y: " << k << std::endl;
   
   // Extract accuracy.
@@ -315,12 +344,20 @@ void Print(int n_intervals_by_x, int n_intervals_by_y,
     }
   }
 
+  printf("Number of processed iterations: %d\n", n_processed_iters);
+  printf("max|x[s+1]-x[s]| = %e\n", achieved_eps);
+  std::cout << "max|V-" << (task == TEST ? "U" : "V2") << "| = " << std::flush;
+  printf("%e (at x[%d]=%f, y[%d]=%f)\n", max_diff, argmax_i, h * argmax_i,
+         argmax_j, k * argmax_j);
+
+  if (!print_tables) return;
+
   // Robust values.
   std::vector<std::vector<std::string> > data(m + 2);
   for (int i = 0; i < m + 2; ++i) {
     data[i].resize(n + 2);
   }
-  data[0][0] = "Robust values";
+  data[0][0] = (task == TEST? "Robust values" : "Results on V2");
   for (int i = 0; i <= n; ++i) {
     std::ostringstream ss;
     ss << i * h;
@@ -340,12 +377,6 @@ void Print(int n_intervals_by_x, int n_intervals_by_y,
   TablePrinter::Print(data);
 
   // Results.
-  printf("Number of processed iterations: %d\n", n_processed_iters);
-  printf("max|x[s+1]-x[s]| = %e\n", achieved_eps);
-  std::cout << "max|V-" << (task == TEST ? "U" : "V2") << "| = " << std::flush;
-  printf("%e (at x[%d]=%f, y[%d]=%f)\n", max_diff, argmax_i, h * argmax_i,
-         argmax_j, k * argmax_j);
-
   data[0][0] = "Results";
   data.erase(data.end());
   data.erase(data.begin() + 1);
