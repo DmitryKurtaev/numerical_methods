@@ -89,8 +89,8 @@ int main(int argc, char** argv) {
     std::vector<double> result_on_dense_net;
     int n_processed_iters_dense_net;
     double achieved_eps_dense_net;
-    Solve(2 * n, 2 * m, MAIN, result_on_dense_net, n_processed_iters_dense_net,
-          achieved_eps_dense_net, n_processed_iters);
+    Solve(2 * n, 2 * m, MAIN, result_on_dense_net, n_processed_iters,
+          achieved_eps_dense_net, n_iters, eps);
 
     std::vector<double> extracted_values((n + 1) * (m + 1), 0);
     for (int j = 1; j < m; ++j) {
@@ -98,7 +98,7 @@ int main(int argc, char** argv) {
       extracted_values[j * (n + 1)] = GetBorderCondition(LEFT, y, MAIN);
       extracted_values[j * (n + 1) + n] = GetBorderCondition(RIGHT, y, MAIN);
       for (int i = 1; i < n; ++i) {
-        const int idx = 2 * j * (2 * (n - 1) + 1) + 2 * i;
+        const int idx = (2 * j - 1) * (2 * n - 1) + 2 * i - 1;
         extracted_values[j * (n + 1) + i] = result_on_dense_net[idx];
       }
     }
