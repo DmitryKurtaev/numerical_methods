@@ -1,8 +1,6 @@
 #ifndef INCLUDE_DIRICHLET_TASK_H_
 #define INCLUDE_DIRICHLET_TASK_H_
 
-#include <vector>
-
 enum Border { TOP, RIGHT, BOTTOM, LEFT };
 
 class DirichletTask {

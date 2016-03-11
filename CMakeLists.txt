@@ -7,6 +7,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(sources
   src/command_line_parser.cc
   src/cubic_spline.cc
+  src/dirichlet_task.cc
   src/plot.cc
   src/system_solver.cc
   src/table_printer.cc
@@ -15,6 +16,7 @@ set(sources
 set(headers	
   include/command_line_parser.h
   include/cubic_spline.h
+  include/dirichlet_task.h
   include/plot.h
   include/system_solver.h
   include/table_printer.h
