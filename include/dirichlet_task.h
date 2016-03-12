@@ -1,6 +1,8 @@
 #ifndef INCLUDE_DIRICHLET_TASK_H_
 #define INCLUDE_DIRICHLET_TASK_H_
 
+#include <vector>
+
 enum Border { TOP, RIGHT, BOTTOM, LEFT };
 
 class DirichletTask {
@@ -15,16 +17,20 @@ class DirichletTask {
 
   void UpdateBorder(Border border, double* src);
 
+  void MPIIteration(double& achieved_eps);
+
+  void GetState(std::vector<double>& state);
+
  private:
   double* x_;
   double* b_;
   double* external_heat_;
   double* borders_condition_[4];
   double borders_[4];
-  const double h_;
-  const double k_;
-  const int n_;
-  const int m_;
+  double h_;
+  double k_;
+  int n_;
+  int m_;
 };
 
 #endif  // INCLUDE_DIRICHLET_TASK_H_

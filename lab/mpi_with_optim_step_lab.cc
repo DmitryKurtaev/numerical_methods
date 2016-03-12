@@ -12,9 +12,8 @@
 
 #include "include/command_line_parser.h"
 #include "include/table_printer.h"
-#include "include/mpi_solver.h"
+#include "include/dirichlet_task.h"
 
-enum Border { TOP, RIGHT, BOTTOM, LEFT };
 enum Task { TEST, MAIN };
 
 static const double kLeftBorder = 0.0;
@@ -27,8 +26,7 @@ double GetExternalHeat(double x, double y, Task task);
 double GetBorderCondition(Border border, double coordinate, Task task);
 
 // eps - max|x[s+1]-x[s]| element wise.
-void Solve(int n_intervals_by_x, int n_intervals_by_y, Task task,
-           std::vector<double>& result,
+void Solve(DirichletTask* dirichlet_task, std::vector<double>& result,
            int& n_processed_iters, double& achieved_eps,
            int max_n_iters = 1, double target_eps = 0);
 
@@ -36,6 +34,8 @@ void Print(int n_intervals_by_x, int n_intervals_by_y,
            std::vector<double>& robust_values,
            std::vector<double>& result, Task task,
            int n_processed_iters, double achieved_eps, bool print_tables);
+
+DirichletTask* BuildDirichletTask(Task task, int n, int m);
 
 void PrintAbout();
 
@@ -60,23 +60,25 @@ int main(int argc, char** argv) {
     return 0;
   }
 
-  const int n_intervals_by_x = parser.Get<int>("n");
-  const int n_intervals_by_y = parser.Get<int>("m");
+  const int n = parser.Get<int>("n");
+  const int m = parser.Get<int>("m");
   const int n_iters = parser.Get<int>("iters", INT_MAX);
   const double eps = parser.Get<double>("eps", 0);
   const Task task = (parser.Exists("main") ? MAIN : TEST);
   const bool print_tables = !parser.Exists("s");
 
+  DirichletTask* dirichlet_task = BuildDirichletTask(task, n, m);
+
   std::vector<double> robust_values;
   std::vector<double> result;
   int n_processed_iters;
   double achieved_eps;
-  const int n = n_intervals_by_x;
-  const int m = n_intervals_by_y;
+
+  Solve(dirichlet_task, result, n_processed_iters, achieved_eps, n_iters, eps);
+  delete dirichlet_task; dirichlet_task = 0;
+
   const double h = (kRightBorder - kLeftBorder) / n;
   const double k = (kTopBorder - kBottomBorder) / m;
-
-  Solve(n, m, task, result, n_processed_iters, achieved_eps, n_iters, eps);
   if (task == TEST) {
     for (int j = 0; j <= m; ++j) {
       const double y = j * k;
@@ -90,8 +92,11 @@ int main(int argc, char** argv) {
     std::vector<double> result_on_dense_net;
     int n_processed_iters_dense_net;
     double achieved_eps_dense_net;
-    Solve(2 * n, 2 * m, MAIN, result_on_dense_net, n_processed_iters,
+
+    dirichlet_task = BuildDirichletTask(MAIN, 2 * n, 2 * m);
+    Solve(dirichlet_task, result_on_dense_net, n_processed_iters,
           achieved_eps_dense_net, n_iters, eps);
+    delete dirichlet_task; dirichlet_task = 0;
 
     std::vector<double> extracted_values((n + 1) * (m + 1), 0);
     for (int j = 1; j < m; ++j) {
@@ -113,45 +118,61 @@ int main(int argc, char** argv) {
   }
 }
 
-void Solve(int n_intervals_by_x, int n_intervals_by_y, Task task,
-           std::vector<double>& result,
-           int& n_processed_iters, double& achieved_eps,
-           int max_n_iters, double target_eps) {
-  const int n = n_intervals_by_x;
-  const int m = n_intervals_by_y;
+DirichletTask* BuildDirichletTask(Task task, int n, int m) {
+  // Fill external heat for task.
   const double h = (kRightBorder - kLeftBorder) / n;
   const double k = (kTopBorder - kBottomBorder) / m;
-  const double inv_h_quad = 1.0 / (h * h);
-  const double inv_k_quad = 1.0 / (k * k);
-  const int dim = (n - 1) * (m - 1);
-
-  double* x = new double[dim];
-  memset(x, 0, sizeof(double) * dim);
-
-  // Setup right part of equations system.
-  double* b = new double[dim];
-  memset(b, 0, sizeof(double) * dim);
-  for (int j = 0; j < m - 1; ++j) {
-    const double y = (j + 1) * k;
-    const int offset = j * (n - 1);
-    b[offset] -= GetBorderCondition(LEFT, y, task) * inv_h_quad;
-    b[offset + n - 2] -= GetBorderCondition(RIGHT, y, task) * inv_h_quad;
-    for (int i = 0; i < n - 1; ++i) {
-      b[offset + i] += GetExternalHeat((i + 1) * h, y, task);
+  double* external_heat = new double[(m - 1) * (n - 1)];
+  for (int j = 1; j < m; ++j) {
+    const int offset = (j - 1) * (n - 1);
+    const double y = kBottomBorder + j * k;
+    for (int i = 1; i < n; ++i) {
+      const double x = kLeftBorder + i * h;
+      external_heat[offset + i - 1] = GetExternalHeat(x, y, task);
     }
   }
-  const int offset = (n - 1) * (m - 2); 
-  for (int i = 0; i < n - 1; ++i) {
-    const double x = (i + 1) * h;
-    b[i] -= GetBorderCondition(BOTTOM, x, task) * inv_k_quad;
-    b[offset + i] -= GetBorderCondition(TOP, x, task) * inv_k_quad;
-  }
 
+  DirichletTask* dirichlet_task = new DirichletTask(kLeftBorder, kRightBorder,
+                                                    kTopBorder, kBottomBorder,
+                                                    n, m, external_heat);
+  delete[] external_heat; external_heat = 0;
+
+  // Set borders.
+  double* first_border = new double[n - 1];
+  double* second_border = new double[n - 1];
+  for (int i = 1; i < n; ++i) {
+    const double x = kLeftBorder + i * h;
+    first_border[i - 1] = GetBorderCondition(BOTTOM, x, task);
+    second_border[i - 1] = GetBorderCondition(TOP, x, task);
+  }
+  dirichlet_task->UpdateBorder(BOTTOM, first_border);
+  dirichlet_task->UpdateBorder(TOP, second_border);
+  delete[] first_border;
+  delete[] second_border;
+
+  first_border = new double[m - 1];
+  second_border = new double[m - 1];
+  for (int j = 1; j < m; ++j) {
+    const double y = kBottomBorder + j * k;
+    first_border[j - 1] = GetBorderCondition(LEFT, y, task);
+    second_border[j - 1] = GetBorderCondition(RIGHT, y, task);
+  }
+  dirichlet_task->UpdateBorder(LEFT, first_border);
+  dirichlet_task->UpdateBorder(RIGHT, second_border);
+  delete[] first_border; first_border = 0;
+  delete[] second_border; second_border = 0;
+
+  return dirichlet_task;
+}
+
+void Solve(DirichletTask* dirichlet_task, std::vector<double>& result,
+           int& n_processed_iters, double& achieved_eps,
+           int max_n_iters, double target_eps) {
   achieved_eps = DBL_MAX;
   for (n_processed_iters = 0;
        n_processed_iters < max_n_iters && achieved_eps > target_eps;
        ++n_processed_iters) {
-    MPISolver::Iteration(x, b, n, m, h, k, achieved_eps);
+    dirichlet_task->MPIIteration(achieved_eps);
 
     printf("\rProcessed iterations: %d, max|x[s+1]-x[s]| = %e",
            n_processed_iters + 1, achieved_eps);
@@ -159,13 +180,7 @@ void Solve(int n_intervals_by_x, int n_intervals_by_y, Task task,
   }
   std::cout << std::endl;
 
-  result.resize(dim);
-  for (int i = 0; i < dim; ++i) {
-    result[i] = x[i];
-  }
-
-  delete[] b;
-  delete[] x;
+  dirichlet_task->GetState(result);
 }
 
 double GetBorderCondition(Border border, double coordinate, Task task) {
