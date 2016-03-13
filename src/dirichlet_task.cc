@@ -57,7 +57,7 @@ void DirichletTask::UpdateBorder(Border border, const DirichletTask& src) {
                   << std::endl;
       }
       mem = new double[n_ - 1];
-      const int offset = (border == BOTTOM ? 0 : (src.m_ - 2) * (src.n_ - 1));
+      const int offset = (border == BOTTOM ? (src.m_ - 2) * (src.n_ - 1) : 0);
       for (int i = 0; i < n_ - 1; ++i) {
         mem[i] = src.x_[offset + i];
       }
@@ -69,7 +69,7 @@ void DirichletTask::UpdateBorder(Border border, const DirichletTask& src) {
                   << std::endl;
       }
       mem = new double[m_ - 1];
-      const int offset = (border == LEFT ? 0 : src.n_ - 2);
+      const int offset = (border == LEFT ? src.n_ - 2 : 0);
       for (int i = 0; i < m_ - 1; ++i) {
         mem[i] = src.x_[i * (src.n_ - 1) + offset];
       }
