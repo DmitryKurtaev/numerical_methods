@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <iostream>
+
 #include "include/mpi_solver.h"
 
 DirichletTask::DirichletTask(double left, double right, double top,
@@ -42,7 +44,7 @@ DirichletTask::~DirichletTask() {
   delete[] b_;
   delete[] x_;
   for (int i = 0; i < 4; ++i) {
-    delete borders_condition_[i];
+    delete[] borders_condition_[i];
   }
 }
 
@@ -50,18 +52,26 @@ void DirichletTask::UpdateBorder(Border border, const DirichletTask& src) {
   double* mem = 0;
   switch (border) {
     case TOP: case BOTTOM: {
+      if (n_ != src.n_) {
+        std::cout << "Warning: UpdateBorder (" << n_ << " != " << src.n_ << ")"
+                  << std::endl;
+      }
       mem = new double[n_ - 1];
-      const int offset = (border == BOTTOM ? 0 : m_ * (n_ - 1));
+      const int offset = (border == BOTTOM ? 0 : (src.m_ - 2) * (src.n_ - 1));
       for (int i = 0; i < n_ - 1; ++i) {
         mem[i] = src.x_[offset + i];
       }
       break;
     }
     case LEFT: case RIGHT: {
+      if (m_ != src.m_) {
+        std::cout << "Warning: UpdateBorder (" << m_ << " != " << src.m_ << ")"
+                  << std::endl;
+      }
       mem = new double[m_ - 1];
-      const int offset = (border == LEFT ? 0 : n_ - 2);
+      const int offset = (border == LEFT ? 0 : src.n_ - 2);
       for (int i = 0; i < m_ - 1; ++i) {
-        mem[i] = src.x_[i * (n_ - 1) + offset];
+        mem[i] = src.x_[i * (src.n_ - 1) + offset];
       }
       break;
     }
