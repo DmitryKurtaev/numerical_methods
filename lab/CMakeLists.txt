@@ -5,6 +5,7 @@ set(labs
   heat_equation_lab.cc
   jacobi_method_lab.cc
   mpi_with_optim_step_lab.cc
+  mpi_combined_areas.cc
 )
 
 foreach(lab ${labs})
