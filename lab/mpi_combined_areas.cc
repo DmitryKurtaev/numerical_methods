@@ -45,6 +45,9 @@ void Print(int n_intervals_by_x, int n_intervals_by_y,
            std::vector<double>& result, Task task,
            int n_processed_iters, double achieved_eps, bool print_tables);
 
+void Solve(std::vector<DirichletTask*>& dirichlet_tasks, int& n_processed_iters,
+           double& achieved_eps, int max_n_iters = 1, double target_eps = 0);
+
 int main(int argc, char** argv) {
   CommandLineParser parser(argc, argv);
   if (parser.Exists("h") || argc == 1) {
@@ -79,30 +82,11 @@ int main(int argc, char** argv) {
   bool success = BuildCombinedTask(dirichlet_tasks, task, n, m);
   if (!success) return 1;
 
-  // Solve.
-  double achieved_eps = DBL_MAX;
-  int n_processed_iters = 0;
-  for (n_processed_iters = 0; n_processed_iters < n_iters && achieved_eps > eps;
-       ++n_processed_iters) {
-
-    dirichlet_tasks[0]->MPIIteration(achieved_eps);
-    for (int i = 1; i < 3; ++i) {
-      double current_eps;
-      dirichlet_tasks[i]->MPIIteration(current_eps);
-      achieved_eps = std::max(achieved_eps, current_eps);
-    }
-
-    dirichlet_tasks[FIRST]->UpdateBorder(RIGHT, *dirichlet_tasks[SECOND]);
-    dirichlet_tasks[SECOND]->UpdateBorder(LEFT, *dirichlet_tasks[FIRST]);
-    dirichlet_tasks[FIRST]->UpdateBorder(TOP, *dirichlet_tasks[THIRD]);
-    dirichlet_tasks[THIRD]->UpdateBorder(BOTTOM, *dirichlet_tasks[FIRST]);
-    
-    printf("\rProcessed iterations: %d, max|x[s+1]-x[s]| = %e",
-           n_processed_iters + 1, achieved_eps);
-    fflush(stdout);
-  }
-  std::cout << std::endl;
+  int n_processed_iters;
+  double achieved_eps;
+  Solve(dirichlet_tasks, n_processed_iters, achieved_eps, n_iters, eps);
   
+  // Extract states of tasks.
   std::vector<double> local_results[3];
   int blocks_m[3];
   int blocks_n[3];
@@ -293,6 +277,32 @@ bool BuildCombinedTask(std::vector<DirichletTask*>& dirichlet_tasks, Task task,
   dirichlet_tasks[FIRST]->UpdateBorder(TOP, *dirichlet_tasks[THIRD]);
   dirichlet_tasks[THIRD]->UpdateBorder(BOTTOM, *dirichlet_tasks[FIRST]);
   return true;
+}
+
+void Solve(std::vector<DirichletTask*>& dirichlet_tasks, int& n_processed_iters,
+           double& achieved_eps, int max_n_iters, double target_eps) {
+  achieved_eps = DBL_MAX;
+  for (n_processed_iters = 0;
+       n_processed_iters < max_n_iters && achieved_eps > target_eps;
+       ++n_processed_iters) {
+
+    dirichlet_tasks[0]->MPIIteration(achieved_eps);
+    for (int i = 1; i < 3; ++i) {
+      double current_eps;
+      dirichlet_tasks[i]->MPIIteration(current_eps);
+      achieved_eps = std::max(achieved_eps, current_eps);
+    }
+
+    dirichlet_tasks[FIRST]->UpdateBorder(RIGHT, *dirichlet_tasks[SECOND]);
+    dirichlet_tasks[SECOND]->UpdateBorder(LEFT, *dirichlet_tasks[FIRST]);
+    dirichlet_tasks[FIRST]->UpdateBorder(TOP, *dirichlet_tasks[THIRD]);
+    dirichlet_tasks[THIRD]->UpdateBorder(BOTTOM, *dirichlet_tasks[FIRST]);
+    
+    printf("\rProcessed iterations: %d, max|x[s+1]-x[s]| = %e",
+           n_processed_iters + 1, achieved_eps);
+    fflush(stdout);
+  }
+  std::cout << std::endl;
 }
 
 void Print(int n_intervals_by_x, int n_intervals_by_y,
