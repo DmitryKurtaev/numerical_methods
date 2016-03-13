@@ -123,3 +123,8 @@ void DirichletTask::GetState(std::vector<double>& state) {
     state[i] = x_[i];
   }
 }
+
+void DirichletTask::GetDimensions(int& n, int& m) {
+  n = n_;
+  m = m_;
+}

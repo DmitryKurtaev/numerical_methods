@@ -37,6 +37,9 @@ double GetBorderCondition(Border border, Block block, double coord, Task task);
 
 DirichletTask* BuildDirichletTask(Task task, Block block, int n, int m);
 
+bool BuildCombinedTask(std::vector<DirichletTask*>& dirichlet_tasks, Task task,
+                       int n, int m);
+
 void Print(int n_intervals_by_x, int n_intervals_by_y,
            std::vector<double>& robust_values,
            std::vector<double>& result, Task task,
@@ -69,49 +72,12 @@ int main(int argc, char** argv) {
   const double eps = parser.Get<double>("eps", 0);
   const Task task = (parser.Exists("main") ? MAIN : TEST);
   const bool print_tables = !parser.Exists("s");
-
-  // Check that blocks border under net's node.
   const double h = (kGlobalBorders[RIGHT] - kGlobalBorders[LEFT]) / n;
   const double k = (kGlobalBorders[TOP] - kGlobalBorders[BOTTOM]) / m;
 
-  for (int border = 0; border < 4; ++border) {
-    const double step = (border % 2 ? h : k);
-    for (int block = 0; block < 3; ++block) {
-      const int idx = kBlockBorders[block][border] / step;
-      if (idx * step != kBlockBorders[block][border]) {
-        std::cout << "Block #" << block << " has border "
-                  << kBlockBorders[block][border] << " which not on net with "
-                  << "step " << step << ". (" << kBlockBorders[block][border]
-                  << " in [" << idx * step << ", " << (idx + 1) * step <<
-                  "])" << std::endl;
-        return 1;
-      }
-    }
-  }
-
-  // Split nodes to blocks. Let block_2 & block_3 has own borders.
-  int blocks_n[3];
-  blocks_n[FIRST] = kBlockBorders[FIRST][RIGHT] / h;
-  blocks_n[THIRD] = blocks_n[FIRST];
-  blocks_n[SECOND] = n - blocks_n[FIRST] + 1;
-
-  int blocks_m[3];
-  blocks_m[FIRST] = kBlockBorders[FIRST][TOP] / k;
-  blocks_m[SECOND] = blocks_m[FIRST];
-  blocks_m[THIRD] = m - blocks_m[FIRST] + 1;
-
-  kBlockBorders[THIRD][BOTTOM] -= k;
-  kBlockBorders[SECOND][LEFT] -= h;
-
-  DirichletTask* dirichlet_tasks[3];
-  for (int i = 0; i < 3; ++i) {
-    dirichlet_tasks[i] = BuildDirichletTask(task, Block(i), blocks_n[i],
-                                            blocks_m[i]);
-  }
-  dirichlet_tasks[FIRST]->UpdateBorder(RIGHT, *dirichlet_tasks[SECOND]);
-  dirichlet_tasks[SECOND]->UpdateBorder(LEFT, *dirichlet_tasks[FIRST]);
-  dirichlet_tasks[FIRST]->UpdateBorder(TOP, *dirichlet_tasks[THIRD]);
-  dirichlet_tasks[THIRD]->UpdateBorder(BOTTOM, *dirichlet_tasks[FIRST]);
+  std::vector<DirichletTask*> dirichlet_tasks;
+  bool success = BuildCombinedTask(dirichlet_tasks, task, n, m);
+  if (!success) return 1;
 
   // Solve.
   double achieved_eps = DBL_MAX;
@@ -138,11 +104,11 @@ int main(int argc, char** argv) {
   std::cout << std::endl;
   
   std::vector<double> local_results[3];
+  int blocks_m[3];
+  int blocks_n[3];
   for (int i = 0; i < 3; ++i) {
     dirichlet_tasks[i]->GetState(local_results[i]);
-  }
-
-  for (int i = 0; i < 3; ++i) {
+    dirichlet_tasks[i]->GetDimensions(blocks_n[i], blocks_m[i]);
     delete dirichlet_tasks[i];
   }
 
@@ -153,6 +119,7 @@ int main(int argc, char** argv) {
       robust_values.push_back(exp(pow(sin(M_PI * i * h * y), 2)));
     }
   }
+  
   for (int j = blocks_m[SECOND] + 1; j <= m; ++j) {
     for (int i = blocks_n[FIRST] + 1; i <= n; ++i) {
       robust_values[j * (m + 1) + i] = nan("");
@@ -278,6 +245,54 @@ DirichletTask* BuildDirichletTask(Task task, Block block, int n, int m) {
   delete[] second_border;
 
   return dirichlet_task;
+}
+
+bool BuildCombinedTask(std::vector<DirichletTask*>& dirichlet_tasks, Task task,
+                       int n, int m) {
+  dirichlet_tasks.resize(3);
+
+  // Check that blocks border under net's node.
+  const double h = (kGlobalBorders[RIGHT] - kGlobalBorders[LEFT]) / n;
+  const double k = (kGlobalBorders[TOP] - kGlobalBorders[BOTTOM]) / m;
+
+  for (int border = 0; border < 4; ++border) {
+    const double step = (border % 2 ? h : k);
+    for (int block = 0; block < 3; ++block) {
+      const int idx = kBlockBorders[block][border] / step;
+      if (idx * step != kBlockBorders[block][border]) {
+        std::cout << "Block #" << block << " has border "
+                  << kBlockBorders[block][border] << " which not on net with "
+                  << "step " << step << ". (" << kBlockBorders[block][border]
+                  << " in [" << idx * step << ", " << (idx + 1) * step <<
+                  "])" << std::endl;
+        return false;
+      }
+    }
+  }
+
+  // Split nodes to blocks. Let block_2 & block_3 has own borders.
+  int blocks_n[3];
+  blocks_n[FIRST] = kBlockBorders[FIRST][RIGHT] / h;
+  blocks_n[THIRD] = blocks_n[FIRST];
+  blocks_n[SECOND] = n - blocks_n[FIRST] + 1;
+
+  int blocks_m[3];
+  blocks_m[FIRST] = kBlockBorders[FIRST][TOP] / k;
+  blocks_m[SECOND] = blocks_m[FIRST];
+  blocks_m[THIRD] = m - blocks_m[FIRST] + 1;
+
+  kBlockBorders[THIRD][BOTTOM] -= k;
+  kBlockBorders[SECOND][LEFT] -= h;
+
+  for (int i = 0; i < 3; ++i) {
+    dirichlet_tasks[i] = BuildDirichletTask(task, Block(i), blocks_n[i],
+                                            blocks_m[i]);
+  }
+  dirichlet_tasks[FIRST]->UpdateBorder(RIGHT, *dirichlet_tasks[SECOND]);
+  dirichlet_tasks[SECOND]->UpdateBorder(LEFT, *dirichlet_tasks[FIRST]);
+  dirichlet_tasks[FIRST]->UpdateBorder(TOP, *dirichlet_tasks[THIRD]);
+  dirichlet_tasks[THIRD]->UpdateBorder(BOTTOM, *dirichlet_tasks[FIRST]);
+  return true;
 }
 
 void Print(int n_intervals_by_x, int n_intervals_by_y,

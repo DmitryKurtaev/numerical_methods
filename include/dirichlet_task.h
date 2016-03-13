@@ -21,6 +21,8 @@ class DirichletTask {
 
   void GetState(std::vector<double>& state);
 
+  void GetDimensions(int& n, int& m);
+
  private:
   double* x_;
   double* b_;
