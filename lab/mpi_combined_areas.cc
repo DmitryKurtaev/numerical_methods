@@ -45,8 +45,15 @@ void Print(int n_intervals_by_x, int n_intervals_by_y,
            std::vector<double>& result, Task task,
            int n_processed_iters, double achieved_eps, bool print_tables);
 
+void ShortPrint(int n, int m, Task task, int n_processed_iters,
+                double achieved_eps, double max_diff);
+
 void Solve(std::vector<DirichletTask*>& dirichlet_tasks, int& n_processed_iters,
            double& achieved_eps, int max_n_iters = 1, double target_eps = 0);
+
+void Merge(std::vector<double>* blocks,
+           std::vector<double>& result,
+           int* blocks_n, int* blocks_m, int n, int m);
 
 int main(int argc, char** argv) {
   CommandLineParser parser(argc, argv);
@@ -85,7 +92,7 @@ int main(int argc, char** argv) {
   int n_processed_iters;
   double achieved_eps;
   Solve(dirichlet_tasks, n_processed_iters, achieved_eps, n_iters, eps);
-  
+
   // Extract states of tasks.
   std::vector<double> local_results[3];
   int blocks_m[3];
@@ -96,44 +103,93 @@ int main(int argc, char** argv) {
     delete dirichlet_tasks[i];
   }
 
-  std::vector<double> robust_values;
-  for (int j = 0; j <= m; ++j) {
-    const double y = j * k;
-    for (int i = 0; i <= n; ++i) {
-      robust_values.push_back(exp(pow(sin(M_PI * i * h * y), 2)));
+  if (task == TEST) {
+    std::vector<double> robust_values((n + 1) * (m + 1));
+    for (int j = 0; j <= m; ++j) {
+      const double y = j * k;
+      const int offset = j * (n + 1);
+      for (int i = 0; i <= n; ++i) {
+        robust_values[offset + i] = exp(pow(sin(M_PI * i * h * y), 2));
+      }
     }
-  }
-  
-  for (int j = blocks_m[SECOND] + 1; j <= m; ++j) {
-    for (int i = blocks_n[FIRST] + 1; i <= n; ++i) {
-      robust_values[j * (m + 1) + i] = nan("");
+
+    // Remove values outside computation area.
+    for (int j = blocks_m[SECOND] + 1; j <= m; ++j) {
+      const int offset = j * (n + 1);
+      for (int i = blocks_n[FIRST] + 1; i <= n; ++i) {
+        robust_values[offset + i] = nan("");
+      }
     }
+
+    std::vector<double> result;
+    result.reserve((n - 1) * (m - 1));
+    std::vector<double>::iterator first_it = local_results[FIRST].begin();
+    std::vector<double>::iterator second_it = local_results[SECOND].begin();
+    for (int i = 0; i < blocks_m[FIRST] - 1; ++i) {
+      result.insert(result.end(), first_it, first_it + blocks_n[FIRST] - 1);
+      result.insert(result.end(), second_it, second_it + blocks_n[SECOND] - 1);
+      first_it += blocks_n[FIRST] - 1;
+      second_it += blocks_n[SECOND] - 1;
+    }
+
+    std::vector<double>::iterator third_it = local_results[THIRD].begin();
+    for (int i = 0; i < blocks_m[THIRD]; ++i) {
+      result.insert(result.end(), third_it, third_it + blocks_n[THIRD] - 1);
+
+      int offset = (i + blocks_m[FIRST]) * (n + 1) + blocks_n[THIRD];
+      result.insert(result.end(), robust_values.begin() + offset,
+                    robust_values.begin() + offset + blocks_n[SECOND] - 1);
+      third_it += blocks_n[THIRD] - 1;
+    }
+
+    Print(n, m, robust_values, result, TEST, n_processed_iters, achieved_eps,
+          print_tables);
+  } else {
+    std::vector<DirichletTask*> dense_dirichlet_tasks;
+    BuildCombinedTask(dense_dirichlet_tasks, MAIN, 2 * n, 2 * m);
+    Solve(dense_dirichlet_tasks, n_processed_iters, achieved_eps, n_iters, eps);
+
+    std::vector<double> dense_results[3];
+    
+    int dense_blocks_m[3];
+    int dense_blocks_n[3];
+    for (int k = 0; k < 3; ++k) {
+      dense_dirichlet_tasks[k]->GetState(dense_results[k]);
+      dense_dirichlet_tasks[k]->GetDimensions(dense_blocks_n[k],
+                                              dense_blocks_m[k]);
+      delete dense_dirichlet_tasks[k];
+    }
+
+    // Collect values.
+    std::vector<double> dense_result;
+    Merge(dense_results, dense_result, dense_blocks_n, dense_blocks_m, 2 * n,
+          2 * m);
+
+    // Remove each 2th row and column (starts from 1).
+    int row = 0;
+    for (int j = 0; j < 2 * m - 1; ++j) {
+      if (j % 2 == 0) {
+        for (int i = 0; i < 2 * n - 1; ++i) {
+          dense_result.erase(dense_result.begin() + row * (n - 1));
+        }
+      } else {
+        for (int i = 0; i < n; ++i) {
+          dense_result.erase(dense_result.begin() + row * (n - 1) + i);
+        }
+        ++row;
+      }
+    }
+    std::vector<double> origin_result;
+    Merge(local_results, origin_result, blocks_n, blocks_m, n, m);
+
+    double max_diff = 0;
+    const int dim = origin_result.size();
+    for (int i = 0; i < dim; ++i) {
+      double diff = fabs(origin_result[i] - dense_result[i]);
+      if (diff > max_diff) max_diff = diff;
+    }
+    ShortPrint(n, m, MAIN, n_processed_iters, achieved_eps, max_diff);
   }
-
-  std::vector<double> result;
-  result.reserve((n - 1) * (m - 1));
-  std::vector<double>::iterator first_it = local_results[FIRST].begin();
-  std::vector<double>::iterator second_it = local_results[SECOND].begin();
-  for (int i = 0; i < blocks_m[FIRST] - 1; ++i) {
-    result.insert(result.end(), first_it, first_it + blocks_n[FIRST] - 1);
-    result.insert(result.end(), second_it, second_it + blocks_n[SECOND] - 1);
-    first_it += blocks_n[FIRST] - 1;
-    second_it += blocks_n[SECOND] - 1;
-  }
-
-  std::vector<double>::iterator third_it = local_results[THIRD].begin();
-  for (int i = 0; i < blocks_m[THIRD]; ++i) {
-    result.insert(result.end(), third_it, third_it + blocks_n[THIRD] - 1);
-
-    int offset = (i + blocks_m[FIRST]) * (n + 1) + blocks_n[THIRD];
-    result.insert(result.end(), robust_values.begin() + offset,
-                  robust_values.begin() + offset + blocks_n[SECOND] - 1);
-    third_it += blocks_n[THIRD] - 1;
-  }
-
-  Print(n, m, robust_values, result, TEST, n_processed_iters, achieved_eps,
-        print_tables);
-
   return 0;
 }
 
@@ -177,6 +233,35 @@ double GetBorderCondition(Border border, Block block, double coord, Task task) {
           }
         }
       }
+      break;
+    case MAIN:
+      switch (block) {
+        case FIRST: {
+          switch (border) {
+            case LEFT: return sin(M_PI * coord);
+            case BOTTOM: return coord * (1 - coord);
+            default: return 0;
+          }
+        }
+        case SECOND: {
+          switch (border) {
+            case TOP: return coord * sin(0.625 * M_PI);
+            case RIGHT: return sin(M_PI * coord);
+            case BOTTOM: return coord * (1 - coord);
+            default: return 0;
+          }
+        }
+        case THIRD: {
+          switch (border) {
+            case TOP: return coord * (1 - coord);
+            case LEFT: return sin(M_PI * coord);
+            case RIGHT: return 2 * sin(0.625 * M_PI) * (1 - coord) + 
+                               0.5 * coord - 0.3125;
+            default: return 0;
+          }
+        }
+      }
+      break;
     default: return 0;
   }
 }
@@ -272,6 +357,9 @@ bool BuildCombinedTask(std::vector<DirichletTask*>& dirichlet_tasks, Task task,
     dirichlet_tasks[i] = BuildDirichletTask(task, Block(i), blocks_n[i],
                                             blocks_m[i]);
   }
+  kBlockBorders[THIRD][BOTTOM] += k;
+  kBlockBorders[SECOND][LEFT] += h;
+
   dirichlet_tasks[FIRST]->UpdateBorder(RIGHT, *dirichlet_tasks[SECOND]);
   dirichlet_tasks[SECOND]->UpdateBorder(LEFT, *dirichlet_tasks[FIRST]);
   dirichlet_tasks[FIRST]->UpdateBorder(TOP, *dirichlet_tasks[THIRD]);
@@ -395,4 +483,40 @@ void Print(int n_intervals_by_x, int n_intervals_by_y,
     }
   }
   TablePrinter::Print(data, 20, 8, 12);
+}
+
+void ShortPrint(int n, int m, Task task, int n_processed_iters,
+                double achieved_eps, double max_diff) {
+  const double h = (kGlobalBorders[RIGHT] - kGlobalBorders[LEFT]) / n;
+  const double k = (kGlobalBorders[TOP] - kGlobalBorders[BOTTOM]) / m;
+
+  std::cout << "\nNet step by x: " << h << std::endl;
+  std::cout << "Net step by y: " << k << std::endl;
+  
+  printf("Number of processed iterations: %d\n", n_processed_iters);
+  printf("max|x[s+1]-x[s]| = %e\n", achieved_eps);
+  std::cout << "max|V-" << (task == TEST ? "U" : "V2") << "| = " << std::flush;
+  printf("%e\n", max_diff);
+}
+
+void Merge(std::vector<double>* blocks, std::vector<double>& result,
+           int* blocks_n, int* blocks_m, int n, int m) {
+  result.clear();
+  result.reserve((n - 1) * (m - 1));
+  std::vector<double>::iterator first_it = blocks[FIRST].begin();
+  std::vector<double>::iterator second_it = blocks[SECOND].begin();
+  for (int i = 0; i < blocks_m[FIRST] - 1; ++i) {
+    result.insert(result.end(), first_it, first_it + blocks_n[FIRST] - 1);
+    result.insert(result.end(), second_it, second_it + blocks_n[SECOND] - 1);
+    first_it += blocks_n[FIRST] - 1;
+    second_it += blocks_n[SECOND] - 1;
+  }
+
+  std::vector<double>::iterator third_it = blocks[THIRD].begin();
+  std::vector<double> zeros(blocks_n[SECOND] - 1, 0);
+  for (int i = 0; i < blocks_m[THIRD] - 1; ++i) {
+    result.insert(result.end(), third_it, third_it + blocks_n[THIRD] - 1);
+    result.insert(result.end(), zeros.begin(), zeros.end());
+    third_it += blocks_n[THIRD] - 1;
+  }
 }
