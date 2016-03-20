@@ -4,6 +4,7 @@ set(labs
   cubic_spline_lab.cc
   heat_equation_lab.cc
   jacobi_method_lab.cc
+  mpi_with_optim_step_lab.cc
 )
 
 foreach(lab ${labs})

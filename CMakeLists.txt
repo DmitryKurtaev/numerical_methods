@@ -9,6 +9,7 @@ set(sources
   src/cubic_spline.cc
   src/plot.cc
   src/system_solver.cc
+  src/table_printer.cc
 )
 
 set(headers	
@@ -16,6 +17,7 @@ set(headers
   include/cubic_spline.h
   include/plot.h
   include/system_solver.h
+  include/table_printer.h
 )
 
 find_package(OpenGL REQUIRED)

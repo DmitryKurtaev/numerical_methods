@@ -1,9 +1,8 @@
-// Copyright 2015 Dmitry Kurtaev
-
 #ifndef INCLUDE_COMMAND_LINE_PARSER_H_
 #define INCLUDE_COMMAND_LINE_PARSER_H_
 
 #include <stdlib.h>
+
 #include <string>
 #include <typeinfo>
 #include <iostream>
@@ -13,7 +12,7 @@ class CommandLineParser {
   CommandLineParser(int argc, char** argv);
 
   template<typename T>
-  T Get(const std::string& key);
+  T Get(const std::string& key, const T& default_value = 0);
 
   bool Exists(const std::string& key);
 
@@ -23,7 +22,7 @@ class CommandLineParser {
 };
 
 template<typename T>
-T CommandLineParser::Get(const std::string& key) {
+T CommandLineParser::Get(const std::string& key, const T& default_value) {
   int idx = -1;
   for (int i = 1; i < argc_; ++i) {
     if (argv_[i] == "-" + key ||
@@ -43,7 +42,7 @@ T CommandLineParser::Get(const std::string& key) {
         typeid(T) == typeid(double_value))
       return atof(argv_[idx + 1]);
   }
-  return 0;
+  return default_value;
 }
 
 #endif  // INCLUDE_COMMAND_LINE_PARSER_H_
