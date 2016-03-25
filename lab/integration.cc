@@ -88,14 +88,14 @@ double Integrate(unsigned id, Method method, int n_intervals) {
     }
 
     case SIMPSON: {
-      double last_points[2];
-      last_points[0] = GetFunction(id, lower_limit);
-      last_points[1] = GetFunction(id, lower_limit + step);
-      for (int i = 2; i <= n_intervals; ++i) {
-        double right_point = GetFunction(id, lower_limit + step * i);
-        res += step * (right_point + 4 * last_points[1] + last_points[0]) / 3;
-        last_points[0] = last_points[1];
-        last_points[1] = right_point;
+      double values[3];
+      values[0] = GetFunction(id, lower_limit);
+      values[1] = GetFunction(id, lower_limit + step);
+      for (int i = 1; i < n_intervals; ++i) {
+        values[2] = GetFunction(id, lower_limit + step * (i + 1));
+        res += step * (values[0] + 4 * values[1] + values[2]) / 3;
+        values[0] = values[1];
+        values[1] = values[2];
       }
       break;
     }
@@ -134,7 +134,7 @@ double GetLimit(unsigned id, Limit limit) {
 }
 
 double GetRobustIntegral(unsigned id) {
-  double term = 2.0 / 3 * (1 - M_PI * M_PI * M_PI);
+  double term = 2.0 / 3 * (1 + pow(cos(1), 3));
   switch (id) {
     case 0: return term;
     case 1: return term - 0.1 * sin(10);
