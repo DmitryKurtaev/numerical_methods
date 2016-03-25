@@ -3,6 +3,7 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty")
 set(labs
   cubic_spline_lab.cc
   heat_equation_lab.cc
+  integration.cc
   jacobi_method_lab.cc
   mpi_with_optim_step_lab.cc
   mpi_combined_areas.cc

@@ -55,11 +55,12 @@ void Plot::Show(const std::string& title) {
   glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
   glutInitWindowSize(view_width_, view_height_);
   glutInitWindowPosition(0, 0);
-  glutCreateWindow(title.c_str());
+  window_handle_ = glutCreateWindow(title.c_str());
   glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_CONTINUE_EXECUTION);
 
   glutDisplayFunc(Display);
   glutReshapeFunc(Reshape);
+  glutKeyboardFunc(KeyPressed);
 
   // Init GL.
   glClearColor(1.0, 1.0, 1.0, 1.0);
@@ -119,7 +120,6 @@ void Plot::DrawAxises() {
 }
 
 void Plot::DrawMarkers() {
-  glutDestroyWindow(window_handle_);
   const int kMarkersSize = 5;
   const int kVerticalAxisMarkers = 5;
   const int kHorizontalAxisMarkers = 5;
@@ -275,4 +275,10 @@ void Plot::DrawCircle(int x, int y, int radius) {
   glVertex2i(x, y + radius);
   glVertex2i(x, y - radius);
   glEnd();
+}
+
+void Plot::KeyPressed(unsigned char key, int x, int y) {
+  if (key == 27) {
+    glutDestroyWindow(current_plot->window_handle_);
+  }
 }

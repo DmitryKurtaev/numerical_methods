@@ -61,6 +61,8 @@ class Plot {
 
   static void Reshape(int width, int height);
 
+  static void KeyPressed(unsigned char key, int x, int y);
+
   int view_width_;
   int view_height_;
   double min_x_;
