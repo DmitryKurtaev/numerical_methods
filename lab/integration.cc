@@ -213,6 +213,7 @@ double GetWaveFunction(double x, double t) {
       params_b[i] = (static_cast<double>(rand()) / RAND_MAX) * 2 - 1;
     }
     alpha = static_cast<double>(rand()) / RAND_MAX;
+    std::cout << "Generated parameter alpha = " << alpha << std::endl;
   }
 
   double res = 0;
@@ -254,16 +255,16 @@ double GetRobustIntegral(unsigned id) {
 
 void ShowWaveFunction(int n_intervals, double eps) {
   static const unsigned kDrawPoints = 1025;
+  static const double kLeftValue = 0.0;
+  static const double kRightValue = 1.0;
 
-  const double lower_limit = GetLimit(kWaveFunctionId, LOWER);
-  const double upper_limit = GetLimit(kWaveFunctionId, UPPER);
-  const double draw_step = (upper_limit - lower_limit) / (kDrawPoints - 1);
+  const double draw_step = (kRightValue - kLeftValue) / (kDrawPoints - 1);
 
   std::vector<double> func_values(kDrawPoints);
   std::vector<double> xs(kDrawPoints);
 
   for (int i = 0; i < kDrawPoints; ++i) {
-    const double x = lower_limit + i * draw_step;
+    const double x = kLeftValue + i * draw_step;
     func_values[i] =  IntegrateWaveFunction(x, n_intervals, eps);
     xs[i] = x;
 
