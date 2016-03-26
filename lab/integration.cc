@@ -88,14 +88,12 @@ double Integrate(unsigned id, Method method, int n_intervals) {
     }
 
     case SIMPSON: {
-      double values[3];
-      values[0] = GetFunction(id, lower_limit);
-      values[1] = GetFunction(id, lower_limit + step);
-      for (int i = 1; i < n_intervals; ++i) {
-        values[2] = GetFunction(id, lower_limit + step * (i + 1));
-        res += step * (values[0] + 4 * values[1] + values[2]) / 3;
-        values[0] = values[1];
-        values[1] = values[2];
+      double left_point = GetFunction(id, lower_limit);
+      for (int i = 0; i < n_intervals; i += 2) {
+        double middle_point = GetFunction(id, lower_limit + step * (i + 1));
+        double right_point = GetFunction(id, lower_limit + step * (i + 2));
+        res += step * (left_point + 4 * middle_point + right_point) / 3;
+        left_point = right_point;
       }
       break;
     }
