@@ -276,7 +276,7 @@ void ShowWaveFunction(int n_intervals, double eps) {
 
   Plot plot;
   plot.Add(xs, func_values, 1, 0, 0, 0.9, true);
-  plot.Show("Integrated function");
+  plot.Show("Integrated function", "x", "g(x)");
 }
 
 void PrintWaiter() {

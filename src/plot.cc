@@ -20,13 +20,9 @@ Plot::Plot()
     view_height_(500) {
 }
 
-void Plot::Add(const std::vector<double>& x,
-               const std::vector<double>& y,
-               int points_size,
-               float color_red,
-               float color_green,
-               float color_blue,
-               bool uniform) {
+void Plot::Add(const std::vector<double>& x, const std::vector<double>& y,
+               int points_size, float color_red, float color_green,
+               float color_blue, bool uniform) {
   Set new_set;
   new_set.x = x;
   new_set.y = y;
@@ -48,7 +44,11 @@ void Plot::Add(const std::vector<double>& x,
   points_sets_.push_back(new_set);
 }
 
-void Plot::Show(const std::string& title) {
+void Plot::Show(const std::string& title, const std::string& xtitle,
+                const std::string& ytitle) {
+  xtitle_ = xtitle;
+  ytitle_ = ytitle;
+
   // Init window.
   int argc = 0;
   glutInit(&argc, 0);
@@ -186,6 +186,14 @@ void Plot::DrawMarkers() {
     DrawString(str,
                x - 0.5 * kCharsShifts * (str.length() + 1), kBottomIndent / 2);
   }
+
+  // Title of axises.
+  glColor3fv(kAxisesColor);
+  DrawString(xtitle_, 0.5 * (view_width_ - kCharsShifts * (xtitle_.length() + 1)),
+             kBottomIndent / 4);
+  DrawString(ytitle_, kLeftIndent / 4,
+             0.5 * (view_height_ - kCharsShifts * (ytitle_.length() + 1)),
+             true);
 }
 
 void Plot::DrawPoints() {
@@ -212,13 +220,18 @@ void Plot::DrawPoints() {
   }
 }
 
-void Plot::DrawString(std::string str, int x, int y) {
+void Plot::DrawString(std::string str, int x, int y, bool vertical) {
   const double kFontScaling = 0.1;
 
   glPushMatrix();
   for (int i = 0; i < str.length(); ++i) {
     glPushMatrix();
-    glTranslatef(x + i * kCharsShifts, y, 0);
+    if (vertical) {
+      glTranslatef(x, y + i * kCharsShifts, 0);
+      glRotatef(90, 0, 0, 1);
+    } else {
+      glTranslatef(x + i * kCharsShifts, y, 0);
+    }
     glScalef(kFontScaling, kFontScaling, 1.0);
     glutStrokeCharacter(GLUT_STROKE_MONO_ROMAN, str[i]);
     glPopMatrix();

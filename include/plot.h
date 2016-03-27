@@ -1,5 +1,3 @@
-// Copyright 2015 Dmitry Kurtaev
-
 #ifndef INCLUDE_PLOT_H_
 #define INCLUDE_PLOT_H_
 
@@ -16,15 +14,12 @@ class Plot {
 
   void Clear();
 
-  void Add(const std::vector<double>& x,
-           const std::vector<double>& y,
-           int points_size,
-           float color_red,
-           float color_green,
-           float color_blue,
-           bool uniform);
+  void Add(const std::vector<double>& x, const std::vector<double>& y,
+           int points_size, float color_red, float color_green,
+           float color_blue, bool uniform);
 
-  void Show(const std::string& title);
+  void Show(const std::string& title, const std::string& xtitle = "",
+            const std::string& ytitle = "");
 
   ~Plot();
 
@@ -53,7 +48,7 @@ class Plot {
 
   void DrawPoints();
 
-  void DrawString(std::string str, int x, int y);
+  void DrawString(std::string str, int x, int y, bool vertical = false);
 
   void DrawCircle(int x, int y, int radius);
 
@@ -75,6 +70,8 @@ class Plot {
   int first_marker_y_;
   std::vector<Set> points_sets_;
   int window_handle_;
+  std::string xtitle_;
+  std::string ytitle_;
 };
 
 #endif  // INCLUDE_PLOT_H_
