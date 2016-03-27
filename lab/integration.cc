@@ -6,6 +6,7 @@
 #include <cmath>
 #include <vector>
 #include <iostream>
+#include <algorithm>
 
 #include "include/plot.h"
 #include "include/command_line_parser.h"
@@ -23,10 +24,11 @@ double GetLimit(unsigned id, Limit limit);
 double Integrate(unsigned id, Method method, int n_intervals);
 
 // Computes using Simpson's formula.
-double IntegrateWaveFunction(double x, double lower_limit, double upper_limit,
-                             int n_intervals);
+double IntegrateWaveFunctionLocally(double x, double lower_limit,
+                                    double upper_limit, int n_intervals);
 
-double IntegrateWaveFunction(double x, int n_intervals, double eps);
+double IntegrateWaveFunction(double x, int n_intervals, double eps,
+                             unsigned& n_integrator_calls);
 
 double GetRobustIntegral(unsigned id);
 
@@ -59,6 +61,7 @@ int main(int argc, char** argv) {
 
   const int integral_id = parser.Get<int>("id");
   const int n_intervals = parser.Get<int>("n");
+  const double eps = parser.Get<double>("eps", 1e-10);
 
   if (integral_id != kWaveFunctionId) {
     std::vector<double> numerical_integrals(3);
@@ -77,7 +80,7 @@ int main(int argc, char** argv) {
 
     ShowFunction(integral_id);
   } else {
-    ShowWaveFunction(n_intervals, 1e-3);
+    ShowWaveFunction(n_intervals, eps);
   }
 
   return 0;
@@ -124,8 +127,8 @@ double Integrate(unsigned id, Method method, int n_intervals) {
   return res;
 }
 
-double IntegrateWaveFunction(double x, double lower_limit, double upper_limit,
-                             int n_intervals) {
+double IntegrateWaveFunctionLocally(double x, double lower_limit,
+                                    double upper_limit, int n_intervals) {
   const double step = (upper_limit - lower_limit) / n_intervals;
   double left_point = GetWaveFunction(x, lower_limit);
   double res = 0;
@@ -138,7 +141,9 @@ double IntegrateWaveFunction(double x, double lower_limit, double upper_limit,
   return res;
 }
 
-double IntegrateWaveFunction(double x, int n_intervals, double eps) {
+double IntegrateWaveFunction(double x, int n_intervals, double eps,
+                             unsigned& n_integrator_calls) {
+  n_integrator_calls = 1;
   double lower_limit = GetLimit(kWaveFunctionId, LOWER);
   double upper_limit = GetLimit(kWaveFunctionId, UPPER);
   std::vector<double> lower_limits(1, lower_limit);
@@ -146,10 +151,11 @@ double IntegrateWaveFunction(double x, int n_intervals, double eps) {
   std::vector<double> target_accuracies(1, eps);
   std::vector<double> global_integrals(1);
 
-  global_integrals[0] = IntegrateWaveFunction(x, lower_limit, upper_limit,
-                                              n_intervals);
+  global_integrals[0] = IntegrateWaveFunctionLocally(x, lower_limit,
+                                                     upper_limit, n_intervals);
   double res = 0;
   do {
+    n_integrator_calls += 2;
     lower_limit = lower_limits.back();
     upper_limit = upper_limits.back();
     eps = target_accuracies.back();
@@ -161,10 +167,12 @@ double IntegrateWaveFunction(double x, int n_intervals, double eps) {
     global_integrals.pop_back();
 
     const double middle = (lower_limit + upper_limit) / 2;
-    const double left_integral = IntegrateWaveFunction(x, lower_limit, middle,
-                                                       n_intervals);
-    const double right_integral = IntegrateWaveFunction(x, middle, upper_limit,
-                                                        n_intervals);
+    const double left_integral = IntegrateWaveFunctionLocally(x, lower_limit,
+                                                              middle,
+                                                              n_intervals);
+    const double right_integral = IntegrateWaveFunctionLocally(x, middle,
+                                                               upper_limit,
+                                                               n_intervals);
 
     if (fabs(left_integral + right_integral - global_integral) >= eps) {
       eps /= 2;
@@ -262,10 +270,13 @@ void ShowWaveFunction(int n_intervals, double eps) {
 
   std::vector<double> func_values(kDrawPoints);
   std::vector<double> xs(kDrawPoints);
+  std::vector<double> n_integrator_calls(kDrawPoints);
 
   for (int i = 0; i < kDrawPoints; ++i) {
     const double x = kLeftValue + i * draw_step;
-    func_values[i] =  IntegrateWaveFunction(x, n_intervals, eps);
+    unsigned n_calls;
+    func_values[i] =  IntegrateWaveFunction(x, n_intervals, eps, n_calls);
+    n_integrator_calls[i] = n_calls;
     xs[i] = x;
 
     std::cout << "\r";
@@ -277,6 +288,10 @@ void ShowWaveFunction(int n_intervals, double eps) {
   Plot plot;
   plot.Add(xs, func_values, 1, 0, 0, 0.9, true);
   plot.Show("Integrated function", "x", "g(x)");
+  plot.Clear();
+
+  plot.Add(xs, n_integrator_calls, 1, 0, 0, 0.9, true);
+  plot.Show("Integrated function", "x", "Number of integrator calls");
 }
 
 void PrintWaiter() {
