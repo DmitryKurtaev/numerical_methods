@@ -30,10 +30,13 @@ include_directories(${OpenGL_INCLUDE_DIRS})
 find_package(GLUT REQUIRED)
 include_directories(${GLUT_INCLUDE_DIRS})
 
+find_package(OpenCV REQUIRED)
+include_directories(${OpenCV_INCLUDE_DIRS})
+
 include_directories(${CMAKE_SOURCE_DIR})
 
 add_subdirectory(lab)
 
 add_library(${CMAKE_PROJECT_NAME} STATIC ${sources} ${headers})
-target_link_libraries(${CMAKE_PROJECT_NAME} ${OPENGL_LIBRARIES} ${GLUT_LIBRARIES})
+target_link_libraries(${CMAKE_PROJECT_NAME} ${OPENGL_LIBRARIES} ${GLUT_LIBRARIES} ${OpenCV_LIBRARIES})
 

@@ -1,13 +1,15 @@
-// Copyright 2015 Dmitry Kurtaev
-
 #include "include/plot.h"
+
 #include <float.h>
-#include <GL/freeglut.h>
 #include <math.h>
 #include <stdlib.h>
+
 #include <string>
 #include <sstream>
 #include <iomanip>
+
+#include <GL/freeglut.h>
+#include <opencv2/opencv.hpp>
 
 const float Plot::kAxisesColor[] = {0.0f, 0.0f, 0.0f};
 
@@ -45,9 +47,10 @@ void Plot::Add(const std::vector<double>& x, const std::vector<double>& y,
 }
 
 void Plot::Show(const std::string& title, const std::string& xtitle,
-                const std::string& ytitle) {
+                const std::string& ytitle, const std::string& saving_path) {
   xtitle_ = xtitle;
   ytitle_ = ytitle;
+  saving_path_ = saving_path;
 
   // Init window.
   int argc = 0;
@@ -67,6 +70,9 @@ void Plot::Show(const std::string& title, const std::string& xtitle,
 
   current_plot = this;
 
+  if (saving_path_ != "") {
+    glutHideWindow();
+  }
   glutMainLoop();
 }
 
@@ -77,6 +83,19 @@ void Plot::Display() {
   current_plot->DrawAxises();
   current_plot->DrawPoints();
   glutSwapBuffers();
+
+  if (current_plot->saving_path_ != "") {
+    const int width = current_plot->view_width_;
+    const int height = current_plot->view_height_;
+    unsigned char* data = new unsigned char[width * height * 3];
+
+    glReadPixels(0, 0, width, height, GL_BGR, GL_UNSIGNED_BYTE, data);
+    cv::Mat mat(height, width, CV_8UC3, data);
+    cv::flip(mat, mat, 0);
+    cv::imwrite(current_plot->saving_path_, mat);
+    current_plot->saving_path_ = "";
+    KeyPressed(27, 0, 0);
+  }
 }
 
 void Plot::Reshape(int width, int height) {

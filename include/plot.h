@@ -19,7 +19,8 @@ class Plot {
            float color_blue, bool uniform);
 
   void Show(const std::string& title, const std::string& xtitle = "",
-            const std::string& ytitle = "");
+            const std::string& ytitle = "",
+            const std::string& saving_path = "");
 
   ~Plot();
 
@@ -72,6 +73,7 @@ class Plot {
   int window_handle_;
   std::string xtitle_;
   std::string ytitle_;
+  std::string saving_path_;
 };
 
 #endif  // INCLUDE_PLOT_H_

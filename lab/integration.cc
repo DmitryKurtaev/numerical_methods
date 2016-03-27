@@ -8,6 +8,8 @@
 #include <iostream>
 #include <algorithm>
 
+#include <opencv2/opencv.hpp>
+
 #include "include/plot.h"
 #include "include/command_line_parser.h"
 
@@ -287,11 +289,22 @@ void ShowWaveFunction(int n_intervals, double eps) {
 
   Plot plot;
   plot.Add(xs, func_values, 1, 0, 0, 0.9, true);
-  plot.Show("Integrated function", "x", "g(x)");
+  plot.Show("Integrated function", "x", "g(x)", "./wave_function.png");
   plot.Clear();
 
   plot.Add(xs, n_integrator_calls, 1, 0, 0, 0.9, true);
-  plot.Show("Integrated function", "x", "Number of integrator calls");
+  plot.Show("Integrated function", "x", "Number of integrator calls",
+            "./n_integrator_calls.png");
+
+  cv::Mat wave_function_img;
+  cv::Mat n_calls_img;
+  wave_function_img = cv::imread("./wave_function.png");
+  n_calls_img = cv::imread("./n_integrator_calls.png");
+  cv::namedWindow("Wave function", cv::WINDOW_AUTOSIZE);
+  cv::namedWindow("Number of integrator calls", cv::WINDOW_AUTOSIZE);
+  cv::imshow("Wave function", wave_function_img);
+  cv::imshow("Number of integrator calls", n_calls_img);
+  cv::waitKey();
 }
 
 void PrintWaiter() {
