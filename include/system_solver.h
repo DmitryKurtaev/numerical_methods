@@ -1,5 +1,3 @@
-// Copyright 2015 Dmitry Kurtaev
-
 #ifndef INCLUDE_SYSTEM_SOLVER_H_
 #define INCLUDE_SYSTEM_SOLVER_H_
 

@@ -1,9 +1,8 @@
-// Copyright 2015 Dmitry Kurtaev
-
 #ifndef INCLUDE_CUBIC_SPLINE_H_
 #define INCLUDE_CUBIC_SPLINE_H_
 
 #include <vector>
+
 #include "include/system_solver.h"
 
 static const double kZeroLimit = 1e-10;

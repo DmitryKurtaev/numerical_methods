@@ -1,13 +1,15 @@
-// Copyright 2015 Dmitry Kurtaev
-
 #include "include/plot.h"
+
 #include <float.h>
-#include <GL/freeglut.h>
 #include <math.h>
 #include <stdlib.h>
+
 #include <string>
 #include <sstream>
 #include <iomanip>
+
+#include <GL/freeglut.h>
+#include <opencv2/opencv.hpp>
 
 const float Plot::kAxisesColor[] = {0.0f, 0.0f, 0.0f};
 
@@ -20,13 +22,9 @@ Plot::Plot()
     view_height_(500) {
 }
 
-void Plot::Add(const std::vector<double>& x,
-               const std::vector<double>& y,
-               int points_size,
-               float color_red,
-               float color_green,
-               float color_blue,
-               bool uniform) {
+void Plot::Add(const std::vector<double>& x, const std::vector<double>& y,
+               int points_size, float color_red, float color_green,
+               float color_blue, bool uniform) {
   Set new_set;
   new_set.x = x;
   new_set.y = y;
@@ -48,24 +46,33 @@ void Plot::Add(const std::vector<double>& x,
   points_sets_.push_back(new_set);
 }
 
-void Plot::Show(const std::string& title) {
+void Plot::Show(const std::string& title, const std::string& xtitle,
+                const std::string& ytitle, const std::string& saving_path) {
+  xtitle_ = xtitle;
+  ytitle_ = ytitle;
+  saving_path_ = saving_path;
+
   // Init window.
   int argc = 0;
   glutInit(&argc, 0);
   glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
   glutInitWindowSize(view_width_, view_height_);
   glutInitWindowPosition(0, 0);
-  glutCreateWindow(title.c_str());
+  window_handle_ = glutCreateWindow(title.c_str());
   glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_CONTINUE_EXECUTION);
 
   glutDisplayFunc(Display);
   glutReshapeFunc(Reshape);
+  glutKeyboardFunc(KeyPressed);
 
   // Init GL.
   glClearColor(1.0, 1.0, 1.0, 1.0);
 
   current_plot = this;
 
+  if (saving_path_ != "") {
+    glutHideWindow();
+  }
   glutMainLoop();
 }
 
@@ -76,6 +83,19 @@ void Plot::Display() {
   current_plot->DrawAxises();
   current_plot->DrawPoints();
   glutSwapBuffers();
+
+  if (current_plot->saving_path_ != "") {
+    const int width = current_plot->view_width_;
+    const int height = current_plot->view_height_;
+    unsigned char* data = new unsigned char[width * height * 3];
+
+    glReadPixels(0, 0, width, height, GL_BGR, GL_UNSIGNED_BYTE, data);
+    cv::Mat mat(height, width, CV_8UC3, data);
+    cv::flip(mat, mat, 0);
+    cv::imwrite(current_plot->saving_path_, mat);
+    current_plot->saving_path_ = "";
+    KeyPressed(27, 0, 0);
+  }
 }
 
 void Plot::Reshape(int width, int height) {
@@ -119,7 +139,6 @@ void Plot::DrawAxises() {
 }
 
 void Plot::DrawMarkers() {
-  glutDestroyWindow(window_handle_);
   const int kMarkersSize = 5;
   const int kVerticalAxisMarkers = 5;
   const int kHorizontalAxisMarkers = 5;
@@ -186,6 +205,14 @@ void Plot::DrawMarkers() {
     DrawString(str,
                x - 0.5 * kCharsShifts * (str.length() + 1), kBottomIndent / 2);
   }
+
+  // Title of axises.
+  glColor3fv(kAxisesColor);
+  DrawString(xtitle_, 0.5 * (view_width_ - kCharsShifts * (xtitle_.length() + 1)),
+             kBottomIndent / 4);
+  DrawString(ytitle_, kLeftIndent / 4,
+             0.5 * (view_height_ - kCharsShifts * (ytitle_.length() + 1)),
+             true);
 }
 
 void Plot::DrawPoints() {
@@ -212,13 +239,18 @@ void Plot::DrawPoints() {
   }
 }
 
-void Plot::DrawString(std::string str, int x, int y) {
+void Plot::DrawString(std::string str, int x, int y, bool vertical) {
   const double kFontScaling = 0.1;
 
   glPushMatrix();
   for (int i = 0; i < str.length(); ++i) {
     glPushMatrix();
-    glTranslatef(x + i * kCharsShifts, y, 0);
+    if (vertical) {
+      glTranslatef(x, y + i * kCharsShifts, 0);
+      glRotatef(90, 0, 0, 1);
+    } else {
+      glTranslatef(x + i * kCharsShifts, y, 0);
+    }
     glScalef(kFontScaling, kFontScaling, 1.0);
     glutStrokeCharacter(GLUT_STROKE_MONO_ROMAN, str[i]);
     glPopMatrix();
@@ -275,4 +307,10 @@ void Plot::DrawCircle(int x, int y, int radius) {
   glVertex2i(x, y + radius);
   glVertex2i(x, y - radius);
   glEnd();
+}
+
+void Plot::KeyPressed(unsigned char key, int x, int y) {
+  if (key == 27) {
+    glutDestroyWindow(current_plot->window_handle_);
+  }
 }
