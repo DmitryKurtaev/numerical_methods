@@ -3,25 +3,22 @@
 #include <iostream>
 
 RungeKuttaSolver::RungeKuttaSolver(
-    void (*GetRightPart)(const std::vector<double>&,
-                         const std::vector<double>&,
-                         std::vector<double>*),
-    double step, unsigned point_dim, unsigned state_dim)
-  : AbstractSolver(GetRightPart, step, point_dim, state_dim),
-    eulerian_solver_(GetRightPart, step, point_dim, state_dim) {
+    void (*GetRightPart)(double point,
+                         const std::vector<double>& state,
+                         std::vector<double>* derivation),
+    double step, unsigned state_dim)
+  : AbstractSolver(GetRightPart, step, state_dim),
+    eulerian_solver_(GetRightPart, step, state_dim) {
 }
 
-void RungeKuttaSolver::Step(const std::vector<double>& point,
+void RungeKuttaSolver::Step(double point,
                             const std::vector<double>& state,
                             std::vector<double>* next_state,
-                            std::vector<double>* next_point) {
-  if (point.size() != point_dim_)
-    std::cout << "Passed point has unwanted dimension" << std::endl;
+                            double* next_point) {
   if (state.size() != state_dim_)
     std::cout << "Passed state has unwanted dimension" << std::endl;
 
   next_state->resize(state_dim_);
-  next_point->resize(point_dim_);
   GetRightPart_(point, state, next_state);
 
   std::vector<double> eulerian_solution;

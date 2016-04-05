@@ -18,16 +18,13 @@ const char* kCmdParams =
     "{ is | init_state | 0.0 | Initial state (at left point) }"
     "{ id | init_deriv | 0.0 | Initial derivation (at left point }";
 
-void GetTestRightPart(const std::vector<double>& point,
-                      const std::vector<double>& state,
+void GetTestRightPart(double point, const std::vector<double>& state,
                       std::vector<double>* derivation);
 
-void GetFirstMainRightPart(const std::vector<double>& point,
-                           const std::vector<double>& state,
+void GetFirstMainRightPart(double point, const std::vector<double>& state,
                            std::vector<double>* derivation);
 
-void GetSecondMainRightPart(const std::vector<double>& point,
-                            const std::vector<double>& state,
+void GetSecondMainRightPart(double point, const std::vector<double>& state,
                             std::vector<double>* derivation);
 
 void GetTestRobustValues(const std::vector<double>& points,
@@ -52,10 +49,10 @@ int main(int argc, char** argv) {
   AbstractSolver* solver = 0;
   switch (task) {
     case TEST:
-      solver = new RungeKuttaSolver(GetTestRightPart, step, 1, 1);
+      solver = new RungeKuttaSolver(GetTestRightPart, step, 1);
       break;
     case FIRST_MAIN:
-      solver = new RungeKuttaSolver(GetTestRightPart, step, 1, 1);
+      solver = new RungeKuttaSolver(GetTestRightPart, step, 1);
       break;
     default:
       std::cout << "Unknows task" << std::endl;
@@ -64,14 +61,11 @@ int main(int argc, char** argv) {
 
   std::vector<double> points(1, kLeftBorder);  // Grid.
   std::vector<double> states(1, initial_state);  // Results of method's work.
-  std::vector<double> next_point(1, kLeftBorder);
   std::vector<double> next_state(1, initial_state);
   for (unsigned i = 0; i < n_iters; ++i) {
-    solver->Step(std::vector<double>(next_point),
-                 std::vector<double>(next_state),
-                 &next_state,
-                 &next_point);
-    points.push_back(next_point[0]);
+    double point = points[points.size() - 1];
+    solver->Step(point, std::vector<double>(next_state), &next_state, &point);
+    points.push_back(point);
     states.push_back(next_state[0]);
   }
 
@@ -84,25 +78,21 @@ int main(int argc, char** argv) {
   return 0;
 }
 
-void GetTestRightPart(const std::vector<double>& point,
-                      const std::vector<double>& state,
+void GetTestRightPart(double point, const std::vector<double>& state,
                       std::vector<double>* derivation) {
   derivation->resize(1);
   derivation->operator [](0) = -5.5 * state[0];
 }
 
-void GetFirstMainRightPart(const std::vector<double>& point,
-                           const std::vector<double>& state,
+void GetFirstMainRightPart(double point, const std::vector<double>& state,
                            std::vector<double>* derivation) {
   derivation->resize(1);
-  const double x = point[0];
   const double u = state[0];
-  const double term = (1.0 + pow(x, 3)) / (1.0 + pow(x, 5));
-  derivation->operator [](0) = u * (1.0 + u * (term - u * sin(10 * x)));
+  const double term = (1.0 + pow(point, 3)) / (1.0 + pow(point, 5));
+  derivation->operator [](0) = u * (1.0 + u * (term - u * sin(10 * point)));
 }
 
-void GetSecondMainRightPart(const std::vector<double>& point,
-                            const std::vector<double>& state,
+void GetSecondMainRightPart(double point, const std::vector<double>& state,
                             std::vector<double>* derivation) {
 
 }

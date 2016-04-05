@@ -6,23 +6,22 @@
 // Interface for differential equation solving.
 class AbstractSolver {
  public:
-  AbstractSolver(void (*GetRightPart)(const std::vector<double>& point,
+  AbstractSolver(void (*GetRightPart)(double point,
                                       const std::vector<double>& state,
                                       std::vector<double>* derivation),
-                 double step, unsigned point_dim, unsigned state_dim);
+                 double step, unsigned state_dim);
 
-  virtual void Step(const std::vector<double>& point,
+  virtual void Step(double point,
                     const std::vector<double>& state,
                     std::vector<double>* next_state,
-                    std::vector<double>* next_point = 0) = 0;
+                    double* next_point = 0) = 0;
 
  protected:
   // Function called for filling derivations vector.
-  void (*GetRightPart_)(const std::vector<double>& point,
+  void (*GetRightPart_)(double point,
                         const std::vector<double>& state,
                         std::vector<double>* derivation);
   double step_;
-  unsigned point_dim_;
   unsigned state_dim_;
 };
 

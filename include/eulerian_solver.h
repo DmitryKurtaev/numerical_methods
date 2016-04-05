@@ -8,15 +8,15 @@
 // Interface for differential equation solving.
 class EulerianSolver : public AbstractSolver {
  public:
-  EulerianSolver(void (*GetRightPart)(const std::vector<double>& point,
+  EulerianSolver(void (*GetRightPart)(double point,
                                       const std::vector<double>& state,
                                       std::vector<double>* derivation),
-                 double step, unsigned point_dim, unsigned state_dim);
+                 double step, unsigned state_dim);
 
-  void Step(const std::vector<double>& point,
+  void Step(double point,
             const std::vector<double>& state,
             std::vector<double>* next_state,
-            std::vector<double>* next_point = 0);
+            double* next_point = 0);
 };
 
 #endif  // INCLUDE_EULERIAN_SOLVER_H_
