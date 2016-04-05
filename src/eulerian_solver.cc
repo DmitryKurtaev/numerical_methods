@@ -22,7 +22,7 @@ void EulerianSolver::Step(const std::vector<double> &point,
   next_state->resize(state_dim_);
   GetRightPart_(point, state, next_state);
   for (unsigned i = 0; i < state_dim_; ++i) {
-    next_state->operator [](i) += state[i] + step_ * next_state->operator [](i);
+    next_state->operator [](i) = state[i] + step_ * next_state->operator [](i);
   }
 
   if (next_point) {
