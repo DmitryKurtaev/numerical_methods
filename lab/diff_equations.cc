@@ -46,6 +46,9 @@ int main(int argc, char** argv) {
   const double initial_derivation = parser.get<double>("init_state");
   const Task task = static_cast<Task>(parser.get<unsigned>("task"));
   const double step = (right_border - kLeftBorder) / n_iters;
+  if (task == FIRST_MAIN && initial_state > 0.6) {
+    std::cout << "Reccomends U(0) is lower or equals 0.6" << std::endl;
+  }
 
   AbstractSolver* solver = 0;
   switch (task) {
@@ -64,8 +67,8 @@ int main(int argc, char** argv) {
   std::vector<double> points(1, kLeftBorder);  // Grid.
   std::vector<double> states(1, initial_state);  // Results of method's work.
   std::vector<double> next_state(1, initial_state);
-  for (unsigned i = 0; i < n_iters; ++i) {
-    double point = points[points.size() - 1];
+  double point = kLeftBorder;
+  for (unsigned i = 0; i < n_iters && point <= right_border; ++i) {
     solver->Step(point, std::vector<double>(next_state), &next_state, &point);
     points.push_back(point);
     states.push_back(next_state[0]);
@@ -104,7 +107,7 @@ int main(int argc, char** argv) {
       }
       TablePrinter::Print(table);
       std::cout << "Number of iterations: " << n_iters << std::endl;
-//      std::cout << "b - x[n] = " << right_border - points.back() << std::endl;
+      std::cout << "b - x[n] = " << right_border - points.back() << std::endl;
       std::cout << "max|U[i] - V[i]| = " << max_diff << " at x[" << argmax
                 << "] = " << points[argmax] << std::endl;
 
@@ -115,6 +118,21 @@ int main(int argc, char** argv) {
     }
 
     case FIRST_MAIN: {
+      row.resize(4);
+      row[0] = "i"; row[1] = "x[i]"; row[2] = "V[i]"; row[3] = "h[i]";
+      table[0] = row;
+
+      for (int i = 0; i < points.size(); ++i) {
+        ss << i;                row[0] = ss.str(); ss.str("");
+        ss << points[i];        row[1] = ss.str(); ss.str("");
+        ss << states[i];        row[2] = ss.str(); ss.str("");
+        ss << step;             row[3] = ss.str(); ss.str("");
+        table[i + 1] = row;
+      }
+      TablePrinter::Print(table);
+      std::cout << "Number of iterations: " << n_iters << std::endl;
+      std::cout << "b - x[n] = " << right_border - points.back() << std::endl;
+
       plot.Add(points, states, 2, 0.8, 0.5, 0.4, true);
       plot.Show("First main task", "x", "U(x)");
       break;
