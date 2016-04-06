@@ -36,44 +36,51 @@ void AbstractSolver::Solve(const std::vector<double>& init_state,
   }
 }
 
-void AbstractSolver::StepWithLocalErrorControl(double eps) {
+void AbstractSolver::SolveWithLocalErrorControl(
+    const std::vector<double>& init_state, double init_point,
+    double right_border, unsigned max_n_iters, double eps) {
   Reset();
-//  std::vector<double> temp_state_full_step;
-//  Step(point, state, temp_state_full_step);
+  points_.push_back(init_point);
+  states_.push_back(init_state);
+  for (unsigned i = 0; i < max_n_iters && init_point <= right_border; ++i) {
+    StepWithLocalErrorControl(eps);
+  }
+}
 
-//  std::vector<double> temp_state_half_step;
-//  std::vector<double> temp_state_double_half_step;
-//  step_ /= 2;
-//  Step(point, state, temp_state_half_step, &point);
-//  Step(point, temp_state_half_step, temp_state_double_half_step, next_point);
-//  step_ *= 2;
+void AbstractSolver::StepWithLocalErrorControl(double eps) {
+  std::vector<double> state_full_step;
+  Step(points_.back(), states_.back(), &state_full_step);
 
-//  *local_error = 0;
-//  for (unsigned i = 0; i < state_dim_; ++i) {
-//    double diff = temp_state_double_half_step[i] - temp_state_full_step[i];
-//    *local_error += diff * diff;
-//  }
-//  *local_error = sqrt(*local_error);
-//  const unsigned term = 1 << GetOrder();
-//  *local_error /= (term - 1);
+  std::vector<double> state_half_step;
+  std::vector<double> state_double_half_step;
+  double point;
+  step_ /= 2;
+  Step(points_.back(), states_.back(), &state_half_step, &point);
+  Step(point, state_half_step, &state_double_half_step, &point);
+  step_ *= 2;
 
-//  if (*local_error > eps) {
-//    step_ /= 2;
-//    *step_decreasing_counter += 1;
-//    StepWithLocalErrorControl(point, state, next_state, eps, local_error,
-//                              step_increasing_counter, step_decreasing_counter,
-//                              next_point);
-//    return;
-//  } else {
-//    next_state->resize(state_dim_);
-//    for (unsigned i = 0; i < state_dim_; ++i) {
-//      next_state->operator [](i) = temp_state_full_step[i];
-//    }
-//    if (*local_error < eps / (term * 2)) {
-//      step_ *= 2;
-//      *step_increasing_counter += 1;
-//    }
-//  }
+  states_.push_back(state_full_step);
+  states_double_half_step_.push_back(state_double_half_step);
+  points_.push_back(point);
+
+  double local_error = 0;
+  for (unsigned i = 0; i < state_dim_; ++i) {
+    double diff = state_double_half_step[i] - state_full_step[i];
+    local_error += diff * diff;
+  }
+  local_error = sqrt(local_error);
+  const unsigned term = 1 << GetOrder();
+  local_error /= (term - 1);
+
+  local_errors_.push_back(local_error);
+
+  if (local_error > eps) {
+    step_ /= 2;
+  } else {
+    if (local_error < eps / (term * 2)) {
+      step_ *= 2;
+    }
+  }
 }
 
 void AbstractSolver::ShowResults() {
@@ -89,9 +96,12 @@ void AbstractSolver::ShowResults() {
   if (!states_double_half_step_.empty()) {
     row.push_back("V2[i]");
     row.push_back("V[i] - V2[i]");
+    states_double_half_step_.insert(states_double_half_step_.begin(),
+                                    std::vector<double>(state_dim_, 0));
   }
   if (!local_errors_.empty()) {
     row.push_back("LE est.");
+    local_errors_.insert(local_errors_.begin(), 0);
   }
   row.push_back("h[i]");
   if (!local_errors_.empty()) {
@@ -115,10 +125,12 @@ void AbstractSolver::ShowResults() {
     ss << states_[i][0]; row.push_back(ss.str()); ss.str("");
 
     if (!states_double_half_step_.empty()) {
-      ss << states_double_half_step_[i][0]; row.push_back(ss.str()); ss.str("");
+      ss << states_double_half_step_[i][0];
+      row.push_back(ss.str()); ss.str("");
       double diff = states_[i][0] - states_double_half_step_[i][0];
       ss << diff; row.push_back(ss.str()); ss.str("");
     }
+
     if (!local_errors_.empty()) {
       ss << local_errors_[i]; row.push_back(ss.str()); ss.str("");
     }
@@ -131,10 +143,14 @@ void AbstractSolver::ShowResults() {
       double previous_step = (i > 1 ? points_[i - 1] - points_[i - 2] :
                                       points_[1] - points_[0]);
       if (step > previous_step) {
-        ss << ++number_step_increasing; row.push_back(ss.str()); ss.str("");
-      } else if (step < previous_step) {
-        ss << ++number_step_decreasing; row.push_back(ss.str()); ss.str("");
+        ++number_step_increasing;
+      } else {
+        if (step < previous_step) {
+          ++number_step_decreasing;
+        }
       }
+      ss << number_step_increasing; row.push_back(ss.str()); ss.str("");
+      ss << number_step_decreasing; row.push_back(ss.str()); ss.str("");
     }
 
     if (GetRobustValues_ != 0) {
@@ -145,7 +161,7 @@ void AbstractSolver::ShowResults() {
 
     table.push_back(row);
   }
-  TablePrinter::Print(table);
+  TablePrinter::Print(table, 20, 11);
   std::cout << "Number of iterations: " << n_points - 1 << std::endl;
 
   Plot plot;

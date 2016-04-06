@@ -25,13 +25,14 @@ void RungeKuttaSolver::Step(double point,
   GetRightPart_(point, state, next_state);
 
   std::vector<double> eulerian_solution;
-  eulerian_solver_.Step(point, state, &eulerian_solution, next_point);
+  eulerian_solver_.Step(point, state, &eulerian_solution, &point);
 
   std::vector<double> term;
-  GetRightPart_(*next_point, eulerian_solution, &term);
+  GetRightPart_(point, eulerian_solution, &term);
 
   for (unsigned i = 0; i < state_dim_; ++i) {
     next_state->operator [](i) = state[i] + 0.5 * step_ *
                                  (next_state->operator [](i) + term[i]);
   }
+  if (next_point) *next_point = point;
 }

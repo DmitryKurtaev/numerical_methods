@@ -69,20 +69,8 @@ int main(int argc, char** argv) {
   // Method.
   std::vector<double> init_state(1, initial_state);
   if (use_error_control) {
-//    unsigned step_increasing_counter = 0;
-//    unsigned step_decreasing_counter = 0;
-//    double local_error;
-//    for (unsigned i = 0; i < n_iters && point <= right_border; ++i) {
-//      solver->StepWithLocalErrorControl(
-//            point, std::vector<double>(next_state), &next_state, eps,
-//            &local_error, &step_increasing_counter, &step_decreasing_counter,
-//            &point);
-//      points.push_back(point);
-//      states.push_back(next_state[0]);
-//      local_errors.push_back(local_error);
-//      step_increasing_counters.push_back(step_increasing_counter);
-//      step_decreasing_counters.push_back(step_decreasing_counter);
-//    }
+    solver->SolveWithLocalErrorControl(init_state, kLeftBorder, right_border,
+                                       n_iters, eps);
   } else {
     solver->Solve(init_state, kLeftBorder, right_border, n_iters);
   }

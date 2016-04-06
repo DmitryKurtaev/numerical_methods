@@ -19,7 +19,9 @@ class AbstractSolver {
   void Solve(const std::vector<double>& init_state, double init_point,
              double right_border, unsigned max_n_iters);
 
-  void SolveWithLocalErrorControl(double eps);
+  void SolveWithLocalErrorControl(const std::vector<double>& init_state,
+                                  double init_point, double right_border,
+                                  unsigned max_n_iters, double eps);
 
   void ShowResults();
 
