@@ -17,6 +17,8 @@ class EulerianSolver : public AbstractSolver {
             const std::vector<double>& state,
             std::vector<double>* next_state,
             double* next_point = 0);
+
+  unsigned GetOrder() { return 1; }
 };
 
 #endif  // INCLUDE_EULERIAN_SOLVER_H_

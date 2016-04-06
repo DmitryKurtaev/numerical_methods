@@ -16,6 +16,17 @@ class AbstractSolver {
                     std::vector<double>* next_state,
                     double* next_point = 0) = 0;
 
+  virtual unsigned GetOrder() = 0;
+
+  void StepWithLocalErrorControl(double point,
+                                 const std::vector<double>& state,
+                                 std::vector<double>* next_state,
+                                 double eps,
+                                 double* local_error,
+                                 unsigned* step_increasing_counter,
+                                 unsigned* step_decreasing_counter,
+                                 double* next_point = 0);
+
  protected:
   // Function called for filling derivations vector.
   void (*GetRightPart_)(double point,

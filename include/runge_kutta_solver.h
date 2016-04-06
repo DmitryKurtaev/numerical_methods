@@ -18,6 +18,8 @@ class RungeKuttaSolver : public AbstractSolver {
             std::vector<double>* next_state,
             double* next_point = 0);
 
+  unsigned GetOrder() { return 2; }
+
  private:
   EulerianSolver eulerian_solver_;
 };
