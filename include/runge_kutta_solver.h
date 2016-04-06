@@ -11,7 +11,11 @@ class RungeKuttaSolver : public AbstractSolver {
   RungeKuttaSolver(void (*GetRightPart)(double point,
                                         const std::vector<double>& state,
                                         std::vector<double>* derivation),
-                 double step, unsigned state_dim);
+                   double step, unsigned state_dim,
+                   void (*GetRobustValues)(
+                     const std::vector<double>& points,
+                     const std::vector<double>& init_state,
+                     std::vector<double>* states) = 0);
 
   void Step(double point,
             const std::vector<double>& state,

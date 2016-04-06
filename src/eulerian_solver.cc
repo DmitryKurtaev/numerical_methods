@@ -6,8 +6,11 @@ EulerianSolver::EulerianSolver(
     void (*GetRightPart)(double point,
                          const std::vector<double>& state,
                          std::vector<double>* derivation),
-    double step, unsigned state_dim)
-  : AbstractSolver(GetRightPart, step, state_dim) {
+    double step, unsigned state_dim,
+    void (*GetRobustValues)(const std::vector<double>& points,
+                            const std::vector<double>& init_state,
+                            std::vector<double>* states))
+  : AbstractSolver(GetRightPart, step, state_dim, GetRobustValues) {
 }
 
 void EulerianSolver::Step(double point,

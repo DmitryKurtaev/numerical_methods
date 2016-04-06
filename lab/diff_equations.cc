@@ -14,6 +14,7 @@ const char* kCmdParams =
     "{ h | help | false | Print this message }"
     "{ t | task | 0 | Id of task (0-test, 1-first main, 2-second main) }"
     "{ n | n_iters | 16 | Number of iterations }"
+    "{ eps | epsilon | 0.01 | Parameter for local error control method }"
     "{ ec | err_control | false | Use local error control }"
     "{ b | right_point | 1.0 | Right border of interval }"
     "{ is | init_state | 0.0 | Initial state (at left point) }"
@@ -29,7 +30,7 @@ void GetSecondMainRightPart(double point, const std::vector<double>& state,
                             std::vector<double>* derivation);
 
 void GetTestRobustValues(const std::vector<double>& points,
-                         double initial_state,
+                         const std::vector<double>& initial_state,
                          std::vector<double>* states);
 
 int main(int argc, char** argv) {
@@ -46,6 +47,7 @@ int main(int argc, char** argv) {
   const double initial_derivation = parser.get<double>("init_state");
   const Task task = static_cast<Task>(parser.get<unsigned>("task"));
   const double step = (right_border - kLeftBorder) / n_iters;
+  const double eps = parser.get<double>("epsilon");
   if (task == FIRST_MAIN && initial_state > 0.6) {
     std::cout << "Reccomends U(0) is lower or equals 0.6" << std::endl;
   }
@@ -53,7 +55,8 @@ int main(int argc, char** argv) {
   AbstractSolver* solver = 0;
   switch (task) {
     case TEST:
-      solver = new RungeKuttaSolver(GetTestRightPart, step, 1);
+      solver = new RungeKuttaSolver(GetTestRightPart, step, 1,
+                                    GetTestRobustValues);
       break;
     case FIRST_MAIN:
       solver = new RungeKuttaSolver(GetFirstMainRightPart, step, 1);
@@ -64,82 +67,26 @@ int main(int argc, char** argv) {
   }
 
   // Method.
-  std::vector<double> points(1, kLeftBorder);  // Grid.
-  std::vector<double> states(1, initial_state);  // Results of method's work.
-  std::vector<double> next_state(1, initial_state);
-  double point = kLeftBorder;
-  for (unsigned i = 0; i < n_iters && point <= right_border; ++i) {
-    solver->Step(point, std::vector<double>(next_state), &next_state, &point);
-    points.push_back(point);
-    states.push_back(next_state[0]);
+  std::vector<double> init_state(1, initial_state);
+  if (use_error_control) {
+//    unsigned step_increasing_counter = 0;
+//    unsigned step_decreasing_counter = 0;
+//    double local_error;
+//    for (unsigned i = 0; i < n_iters && point <= right_border; ++i) {
+//      solver->StepWithLocalErrorControl(
+//            point, std::vector<double>(next_state), &next_state, eps,
+//            &local_error, &step_increasing_counter, &step_decreasing_counter,
+//            &point);
+//      points.push_back(point);
+//      states.push_back(next_state[0]);
+//      local_errors.push_back(local_error);
+//      step_increasing_counters.push_back(step_increasing_counter);
+//      step_decreasing_counters.push_back(step_decreasing_counter);
+//    }
+  } else {
+    solver->Solve(init_state, kLeftBorder, right_border, n_iters);
   }
-
-  // Output procedures.
-  Plot plot;
-  std::vector<std::vector<std::string> > table(points.size() + 1);
-  std::vector<std::string> row;
-  std::ostringstream ss;
-  switch (task) {
-
-    case TEST: {
-      row.resize(6);
-      row[0] = "i"; row[1] = "x[i]"; row[2] = "V[i]"; row[3] = "h[i]";
-      row[4] = "U[i]"; row[5] = "|U[i] - V[i]|";
-      table[0] = row;
-
-      std::vector<double> robust_values;
-      GetTestRobustValues(points, initial_state, &robust_values);
-      double max_diff = 0;
-      unsigned argmax = 0;
-      for (int i = 0; i < points.size(); ++i) {
-        double diff = fabs(robust_values[i] - states[i]);
-        if (diff > max_diff) {
-          max_diff = diff;
-          argmax = i;
-        }
-        ss << i;                row[0] = ss.str(); ss.str("");
-        ss << points[i];        row[1] = ss.str(); ss.str("");
-        ss << states[i];        row[2] = ss.str(); ss.str("");
-        ss << step;             row[3] = ss.str(); ss.str("");
-        ss << robust_values[i]; row[4] = ss.str(); ss.str("");
-        ss << diff;             row[5] = ss.str(); ss.str("");
-        table[i + 1] = row;
-      }
-      TablePrinter::Print(table);
-      std::cout << "Number of iterations: " << n_iters << std::endl;
-      std::cout << "b - x[n] = " << right_border - points.back() << std::endl;
-      std::cout << "max|U[i] - V[i]| = " << max_diff << " at x[" << argmax
-                << "] = " << points[argmax] << std::endl;
-
-      plot.Add(points, states, 2, 0.8, 0.5, 0.4, true);
-      plot.Add(points, robust_values, 2, 0.5, 0.8, 0.4, true);
-      plot.Show("Test", "x", "U(x)");
-      break;
-    }
-
-    case FIRST_MAIN: {
-      row.resize(4);
-      row[0] = "i"; row[1] = "x[i]"; row[2] = "V[i]"; row[3] = "h[i]";
-      table[0] = row;
-
-      for (int i = 0; i < points.size(); ++i) {
-        ss << i;                row[0] = ss.str(); ss.str("");
-        ss << points[i];        row[1] = ss.str(); ss.str("");
-        ss << states[i];        row[2] = ss.str(); ss.str("");
-        ss << step;             row[3] = ss.str(); ss.str("");
-        table[i + 1] = row;
-      }
-      TablePrinter::Print(table);
-      std::cout << "Number of iterations: " << n_iters << std::endl;
-      std::cout << "b - x[n] = " << right_border - points.back() << std::endl;
-
-      plot.Add(points, states, 2, 0.8, 0.5, 0.4, true);
-      plot.Show("First main task", "x", "U(x)");
-      break;
-    }
-
-    default: break;
-  }
+  solver->ShowResults();
 
   delete solver;
 
@@ -166,11 +113,11 @@ void GetSecondMainRightPart(double point, const std::vector<double>& state,
 }
 
 void GetTestRobustValues(const std::vector<double>& points,
-                         double initial_state,
+                         const std::vector<double>& initial_state,
                          std::vector<double>* states) {
   const unsigned size = points.size();
   states->resize(size);
   for (unsigned i = 0; i < size; ++i) {
-    states->operator [](i) = initial_state * exp(-5.5 * points[i]);
+    states->operator [](i) = initial_state[0] * exp(-5.5 * points[i]);
   }
 }
