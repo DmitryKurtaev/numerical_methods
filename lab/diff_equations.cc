@@ -4,6 +4,7 @@
 
 #include "include/runge_kutta_solver.h"
 #include "include/plot.h"
+#include "include/table_printer.h"
 
 enum Task { TEST, FIRST_MAIN, SECOND_MAIN };
 
@@ -52,13 +53,14 @@ int main(int argc, char** argv) {
       solver = new RungeKuttaSolver(GetTestRightPart, step, 1);
       break;
     case FIRST_MAIN:
-      solver = new RungeKuttaSolver(GetTestRightPart, step, 1);
+      solver = new RungeKuttaSolver(GetFirstMainRightPart, step, 1);
       break;
     default:
       std::cout << "Unknows task" << std::endl;
       return 0;
   }
 
+  // Method.
   std::vector<double> points(1, kLeftBorder);  // Grid.
   std::vector<double> states(1, initial_state);  // Results of method's work.
   std::vector<double> next_state(1, initial_state);
@@ -69,9 +71,57 @@ int main(int argc, char** argv) {
     states.push_back(next_state[0]);
   }
 
+  // Output procedures.
   Plot plot;
-  plot.Add(points, states, 2, 0.5, 0.8, 0.4, true);
-  plot.Show("Test", "x", "U(x)");
+  std::vector<std::vector<std::string> > table(points.size() + 1);
+  std::vector<std::string> row;
+  std::ostringstream ss;
+  switch (task) {
+
+    case TEST: {
+      row.resize(6);
+      row[0] = "i"; row[1] = "x[i]"; row[2] = "V[i]"; row[3] = "h[i]";
+      row[4] = "U[i]"; row[5] = "|U[i] - V[i]|";
+      table[0] = row;
+
+      std::vector<double> robust_values;
+      GetTestRobustValues(points, initial_state, &robust_values);
+      double max_diff = 0;
+      unsigned argmax = 0;
+      for (int i = 0; i < points.size(); ++i) {
+        double diff = fabs(robust_values[i] - states[i]);
+        if (diff > max_diff) {
+          max_diff = diff;
+          argmax = i;
+        }
+        ss << i;                row[0] = ss.str(); ss.str("");
+        ss << points[i];        row[1] = ss.str(); ss.str("");
+        ss << states[i];        row[2] = ss.str(); ss.str("");
+        ss << step;             row[3] = ss.str(); ss.str("");
+        ss << robust_values[i]; row[4] = ss.str(); ss.str("");
+        ss << diff;             row[5] = ss.str(); ss.str("");
+        table[i + 1] = row;
+      }
+      TablePrinter::Print(table);
+      std::cout << "Number of iterations: " << n_iters << std::endl;
+//      std::cout << "b - x[n] = " << right_border - points.back() << std::endl;
+      std::cout << "max|U[i] - V[i]| = " << max_diff << " at x[" << argmax
+                << "] = " << points[argmax] << std::endl;
+
+      plot.Add(points, states, 2, 0.8, 0.5, 0.4, true);
+      plot.Add(points, robust_values, 2, 0.5, 0.8, 0.4, true);
+      plot.Show("Test", "x", "U(x)");
+      break;
+    }
+
+    case FIRST_MAIN: {
+      plot.Add(points, states, 2, 0.8, 0.5, 0.4, true);
+      plot.Show("First main task", "x", "U(x)");
+      break;
+    }
+
+    default: break;
+  }
 
   delete solver;
 
