@@ -193,19 +193,30 @@ void AbstractSolver::ShowResults() {
                 states_[max_diff_with_robust_node][0]),
            max_diff_with_robust_node, points_[max_diff_with_robust_node]);
   }
+  fflush(stdout);
 
   Plot plot;
-  if (state_dim_ == 1) {
-    std::vector<double> single_states(n_points);
-    for (unsigned i = 0; i < n_points; ++i) {
-      single_states[i] = states_[i][0];
-    }
-    if (GetRobustValues_ != 0) {
-      plot.Add(points_, robust_values, 2, 0.5, 0.8, 0.4, true);
-    }
-    plot.Add(points_, single_states, 2, 0.8, 0.5, 0.4, false);
-    plot.Show("Solution", "x", "U(x)");
+
+  std::vector<double> single_states(n_points);
+  for (unsigned i = 0; i < n_points; ++i) {
+    single_states[i] = states_[i][0];
   }
+  if (GetRobustValues_ != 0) {
+    plot.Add(points_, robust_values, 2, 0.5, 0.8, 0.4, true);
+  }
+  plot.Add(points_, single_states, 2, 0.8, 0.5, 0.4, false);
+  plot.Show("Solution", "x", "U(x)");
+
+  if (state_dim_ == 2) {
+    plot.Clear();
+    std::vector<double> derivates(n_points);
+    for (unsigned i = 0; i < n_points; ++i) {
+      derivates[i] = states_[i][1];
+    }
+    plot.Add(single_states, derivates, 2, 0.8, 0.5, 0.4, false);
+    plot.Show("Solution", "U(x)", "dU/dx");
+  }
+
   if (!local_errors_.empty()) {
     plot.Clear();
     plot.Add(points_, local_errors_, 3, 0.6, 0.3, 0.6, true);

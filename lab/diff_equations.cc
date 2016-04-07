@@ -54,13 +54,24 @@ int main(int argc, char** argv) {
   }
 
   AbstractSolver* solver = 0;
+  std::vector<double> init_state;
   switch (task) {
     case TEST:
       solver = new RungeKuttaSolver(GetTestRightPart, step, 1,
                                     GetTestRobustValues);
+      init_state.resize(1);
+      init_state[0] = initial_state;
       break;
     case FIRST_MAIN:
       solver = new RungeKuttaSolver(GetFirstMainRightPart, step, 1);
+      init_state.resize(1);
+      init_state[0] = initial_state;
+      break;
+    case SECOND_MAIN:
+      solver = new RungeKuttaSolver(GetSecondMainRightPart, step, 2);
+      init_state.resize(2);
+      init_state[0] = initial_state;
+      init_state[1] = initial_derivation;
       break;
     default:
       std::cout << "Unknows task" << std::endl;
@@ -68,7 +79,6 @@ int main(int argc, char** argv) {
   }
 
   // Method.
-  std::vector<double> init_state(1, initial_state);
   if (use_error_control) {
     solver->SolveWithLocalErrorControl(init_state, kLeftBorder, right_border,
                                        max_n_iters, eps);
@@ -98,7 +108,15 @@ void GetFirstMainRightPart(double point, const std::vector<double>& state,
 
 void GetSecondMainRightPart(double point, const std::vector<double>& state,
                             std::vector<double>* derivation) {
+  static const double param_a = 1.0;
+  static const double param_b = 1.0;
+  static const double param_c = 1.58;
 
+  derivation->resize(2);
+  const double z = state[1];
+  derivation->operator [](0) = z;
+  derivation->operator [](1) = -z * (param_a * fabs(z) + param_b) -
+                               param_c * state[0];
 }
 
 void GetTestRobustValues(const std::vector<double>& points,
