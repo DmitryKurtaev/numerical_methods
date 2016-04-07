@@ -45,7 +45,7 @@ int main(int argc, char** argv) {
   const bool use_error_control = parser.get<bool>("err_control");
   const double right_border = parser.get<double>("right_point");
   const double initial_state = parser.get<double>("init_state");
-  const double initial_derivation = parser.get<double>("init_state");
+  const double initial_derivation = parser.get<double>("init_deriv");
   const Task task = static_cast<Task>(parser.get<unsigned>("task"));
   const double step = parser.get<double>("step");
   const double eps = parser.get<double>("epsilon");
