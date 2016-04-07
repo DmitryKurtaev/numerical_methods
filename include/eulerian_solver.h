@@ -19,6 +19,7 @@ class EulerianSolver : public AbstractSolver {
   void Step(double point,
             const std::vector<double>& state,
             std::vector<double>* next_state,
+            double step,
             double* next_point = 0);
 
   unsigned GetOrder() { return 1; }

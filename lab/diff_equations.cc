@@ -13,7 +13,8 @@ static const double kLeftBorder = 0.0;
 const char* kCmdParams =
     "{ h | help | false | Print this message }"
     "{ t | task | 0 | Id of task (0-test, 1-first main, 2-second main) }"
-    "{ n | n_iters | 16 | Number of iterations }"
+    "{ n | n_iters | 999 | Maximal number of iterations }"
+    "{ s | step | 0.25 | Initial step between trajectory points }"
     "{ eps | epsilon | 0.01 | Parameter for local error control method }"
     "{ ec | err_control | false | Use local error control }"
     "{ b | right_point | 1.0 | Right border of interval }"
@@ -40,13 +41,13 @@ int main(int argc, char** argv) {
     return 0;
   }
 
-  const unsigned n_iters = parser.get<unsigned>("n_iters");
+  const unsigned max_n_iters = parser.get<unsigned>("n_iters");
   const bool use_error_control = parser.get<bool>("err_control");
   const double right_border = parser.get<double>("right_point");
   const double initial_state = parser.get<double>("init_state");
   const double initial_derivation = parser.get<double>("init_state");
   const Task task = static_cast<Task>(parser.get<unsigned>("task"));
-  const double step = (right_border - kLeftBorder) / n_iters;
+  const double step = parser.get<double>("step");
   const double eps = parser.get<double>("epsilon");
   if (task == FIRST_MAIN && initial_state > 0.6) {
     std::cout << "Reccomends U(0) is lower or equals 0.6" << std::endl;
@@ -70,9 +71,9 @@ int main(int argc, char** argv) {
   std::vector<double> init_state(1, initial_state);
   if (use_error_control) {
     solver->SolveWithLocalErrorControl(init_state, kLeftBorder, right_border,
-                                       n_iters, eps);
+                                       max_n_iters, eps);
   } else {
-    solver->Solve(init_state, kLeftBorder, right_border, n_iters);
+    solver->Solve(init_state, kLeftBorder, right_border, max_n_iters);
   }
   solver->ShowResults();
 

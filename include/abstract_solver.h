@@ -29,6 +29,7 @@ class AbstractSolver {
   virtual void Step(double point,
                     const std::vector<double>& state,
                     std::vector<double>* next_state,
+                    double step,
                     double* next_point = 0) = 0;
 
   // Function called for filling derivations vector.
@@ -39,18 +40,23 @@ class AbstractSolver {
   void (*GetRobustValues_)(const std::vector<double>& points,
                            const std::vector<double>& init_state,
                            std::vector<double>* states);
-  double step_;
+
   unsigned state_dim_;
   std::vector<double> points_;
   std::vector<std::vector<double> > states_;
 
  private:
-  void StepWithLocalErrorControl(double eps);
+  void StepWithLocalErrorControl(double eps, unsigned* n_step_inc,
+                                 unsigned* n_step_dec);
 
   void Reset();
 
   std::vector<std::vector<double> > states_double_half_step_;
   std::vector<double> local_errors_;
+  std::vector<unsigned> step_inc_history_;
+  std::vector<unsigned> step_dec_history_;
+  double init_step_;
+  double step_;
 };
 
 #endif  // INCLUDE_ABSTRACT_SOLVER_H_
