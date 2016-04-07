@@ -1,6 +1,7 @@
 #include "include/abstract_solver.h"
 
 #include <math.h>
+#include <stdio.h>
 
 #include <string>
 #include <sstream>
@@ -46,7 +47,7 @@ void AbstractSolver::SolveWithLocalErrorControl(
   step_dec_history_.push_back(0);
   for (unsigned i = 0; i < max_n_iters && points_.back() < right_border; ++i) {
     step_inc_history_.push_back(step_inc_history_.back());
-    step_dec_history_.push_back(step_inc_history_.back());
+    step_dec_history_.push_back(step_dec_history_.back());
     StepWithLocalErrorControl(eps, &step_inc_history_.back(),
                               &step_dec_history_.back());
   }
@@ -116,13 +117,17 @@ void AbstractSolver::ShowResults() {
   if (GetRobustValues_ != 0) {
     row.push_back("U[i]");
     row.push_back("|U[i] - V[i]|");
-     GetRobustValues_(points_, states_.front(), &robust_values);
+    GetRobustValues_(points_, states_.front(), &robust_values);
   }
   table.push_back(row);
 
   std::ostringstream ss;
   std::ostringstream sc_ss;
   sc_ss << std::scientific;
+  unsigned max_local_error_node = 0;
+  unsigned max_step_node = 1;
+  unsigned min_step_node = 1;
+  unsigned max_diff_with_robust_node = 0;
   for (unsigned i = 0; i < n_points; ++i) {
     row.clear();
     ss << i;             row.push_back(ss.str()); ss.str("");
@@ -138,10 +143,19 @@ void AbstractSolver::ShowResults() {
 
     if (!local_errors_.empty()) {
       sc_ss << local_errors_[i]; row.push_back(sc_ss.str()); sc_ss.str("");
+      if (local_errors_[i] > local_errors_[max_local_error_node]) {
+        max_local_error_node = i;
+      }
     }
 
     double step = (i != 0 ? points_[i] - points_[i - 1] : init_step_);
     sc_ss << step; row.push_back(sc_ss.str()); sc_ss.str("");
+    if (i != 0 && step > points_[max_step_node] - points_[max_step_node - 1]) {
+      max_step_node = i;
+    }
+    if (i != 0 && step < points_[min_step_node] - points_[min_step_node - 1]) {
+      min_step_node = i;
+    }
 
     if (!local_errors_.empty()) {
       ss << step_inc_history_[i]; row.push_back(ss.str()); ss.str("");
@@ -150,14 +164,35 @@ void AbstractSolver::ShowResults() {
 
     if (GetRobustValues_ != 0) {
       ss << robust_values[i]; row.push_back(ss.str()); ss.str("");
-      ss << fabs(robust_values[i] - states_[i][0]);
-      row.push_back(ss.str()); ss.str("");
+      double diff = fabs(robust_values[i] - states_[i][0]);
+      sc_ss << diff; row.push_back(sc_ss.str()); sc_ss.str("");
+      if (diff > fabs(robust_values[max_diff_with_robust_node] -
+                      states_[max_diff_with_robust_node][0])) {
+        max_diff_with_robust_node = i;
+      }
     }
 
     table.push_back(row);
   }
   TablePrinter::Print(table, 20, 11);
   std::cout << "Number of iterations: " << n_points - 1 << std::endl;
+  if (!local_errors_.empty()) {
+    printf("Maximal local error: %e at x[%d]=%f\n",
+           local_errors_[max_local_error_node], max_local_error_node,
+           points_[max_local_error_node]);
+  }
+  printf("Maximal step: %e at x[%d]=%f\n",
+         points_[max_step_node] - points_[max_step_node - 1],
+         max_step_node, points_[max_step_node]);
+  printf("Minimal step: %e at x[%d]=%f\n",
+         points_[min_step_node] - points_[min_step_node - 1],
+         min_step_node, points_[min_step_node]);
+  if (GetRobustValues_ != 0) {
+    printf("max|U[i] - V[i]| = %e at x[%d]=%f\n",
+           fabs(robust_values[max_diff_with_robust_node] -
+                states_[max_diff_with_robust_node][0]),
+           max_diff_with_robust_node, points_[max_diff_with_robust_node]);
+  }
 
   Plot plot;
   if (state_dim_ == 1) {
@@ -168,7 +203,7 @@ void AbstractSolver::ShowResults() {
     if (GetRobustValues_ != 0) {
       plot.Add(points_, robust_values, 2, 0.5, 0.8, 0.4, true);
     }
-    plot.Add(points_, single_states, 2, 0.8, 0.5, 0.4, true);
+    plot.Add(points_, single_states, 2, 0.8, 0.5, 0.4, false);
     plot.Show("Solution", "x", "U(x)");
   }
   if (!local_errors_.empty()) {
