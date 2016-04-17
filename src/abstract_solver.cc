@@ -46,6 +46,9 @@ void AbstractSolver::SolveWithLocalErrorControl(
   step_inc_history_.push_back(0);
   step_dec_history_.push_back(0);
   for (unsigned i = 0; i < max_n_iters && points_.back() < right_border; ++i) {
+    if (right_border - points_.back() < step_) {
+      step_ = right_border - points_.back();
+    }
     step_inc_history_.push_back(step_inc_history_.back());
     step_dec_history_.push_back(step_dec_history_.back());
     StepWithLocalErrorControl(eps, &step_inc_history_.back(),
@@ -213,6 +216,9 @@ void AbstractSolver::ShowResults() {
     for (unsigned i = 0; i < n_points; ++i) {
       derivates[i] = states_[i][1];
     }
+    plot.Add(points_, derivates, 2, 0.8, 0.5, 0.4, false);
+    plot.Show("Solution", "x", "dU/dx");
+    plot.Clear();
     plot.Add(single_states, derivates, 2, 0.8, 0.5, 0.4, false);
     plot.Show("Solution", "U(x)", "dU/dx");
   }
